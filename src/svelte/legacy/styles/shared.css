@@ -1,0 +1,316 @@
+/* Shared cross-domain styles migrated from legacy style.css */
+
+/* ===========================
+    SHARED INTERACTION STATES
+    =========================== */
+.modal-content input:focus,
+.db-guide-btn:focus,
+.settings-section input:not([type="checkbox"]):focus,
+.settings-section select:focus,
+.wizard-modal .form-group input:focus,
+.wizard-modal .form-group select:focus,
+.roster-select:focus,
+.friends-add-form input:focus,
+.add-character input:focus,
+.add-character select:focus {
+     outline: none;
+     border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 22%, transparent);
+}
+
+/* ===========================
+    SHARED LAYOUT PATTERNS
+    =========================== */
+#friends-setup-modal .friends-setup-titlebar,
+#friends-setup-modal .friends-setup-card__header,
+.column-settings-copy {
+     display: flex;
+     flex-direction: column;
+     gap: 4px;
+}
+
+.header-buttons,
+.weekly-title-row,
+.weekly-actions-left,
+.weekly-actions-right {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+#friends-tab .friends-header-actions .header-icon-btn:hover:not(:disabled),
+#load-api.header-icon-btn:hover,
+#weekly-reset.header-icon-btn:hover {
+    background-color: var(--color-surface-hover);
+    border-color: var(--color-border);
+    transform: scale(1.05);
+}
+
+#friends-tab .friends-header-actions .header-icon-btn .btn-label,
+.weekly-actions .header-icon-btn .btn-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.sort-roster-btn:hover,
+.action-icon-btn:hover {
+    background-color: var(--color-surface-hover);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+/* ===========================
+   BUTTONS
+   =========================== */
+button {
+    font-family: inherit;
+    transition: all var(--transition-fast);
+}
+
+button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+button.loading {
+    position: relative;
+    color: transparent;
+}
+
+button.loading::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 50%;
+    left: 50%;
+    margin-left: -8px;
+    margin-top: -8px;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    border-radius: var(--radius-full);
+    animation: spin 0.6s linear infinite;
+}
+
+/* --- Custom Checkbox Base --- */
+.checkmark,
+.wizard-character-item input[type="checkbox"],
+.weekly-roster-selector__item input,
+.visible-rosters-item input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    background-color: #3B3B3B;
+    border: 1.5px solid #858585;
+    border-radius: 3px;
+    cursor: pointer;
+    position: relative;
+    flex-shrink: 0;
+    transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.checkmark:checked,
+.wizard-character-item input[type="checkbox"]:checked,
+.weekly-roster-selector__item input:checked,
+.visible-rosters-item input[type="checkbox"]:checked {
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+.checkmark:checked::after,
+.wizard-character-item input[type="checkbox"]:checked::after,
+.weekly-roster-selector__item input:checked::after,
+.visible-rosters-item input[type="checkbox"]:checked::after {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 1px;
+    width: 5px;
+    height: 9px;
+    border: 2px solid var(--color-bg-dark);
+    border-top: none;
+    border-left: none;
+    transform: rotate(45deg);
+}
+
+.checkmark:hover,
+.wizard-character-item input[type="checkbox"]:hover,
+.weekly-roster-selector__item input:hover,
+.visible-rosters-item input[type="checkbox"]:hover {
+    border-color: var(--color-primary);
+}
+
+.checkmark {
+    z-index: 2;
+    transition: transform var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.checkmark:hover {
+    transform: scale(1.2);
+}
+/* --- /Custom Checkbox Base --- */
+
+/* ===========================
+   SHARED CONFIRM MODAL
+   =========================== */
+.settings-confirm-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(5, 8, 14, 0.74);
+    backdrop-filter: blur(3px);
+}
+
+.settings-confirm-card {
+    width: min(94vw, 472px);
+    border: 1px solid color-mix(in srgb, var(--color-border-light) 62%, var(--color-border));
+    border-radius: var(--radius-lg);
+    background: linear-gradient(180deg,
+        color-mix(in srgb, var(--color-surface-light) 92%, var(--color-surface)) 0%,
+        color-mix(in srgb, var(--color-surface) 88%, var(--color-bg-darker)) 100%);
+    box-shadow: var(--shadow-lg);
+    padding: 16px;
+    display: grid;
+    gap: 10px;
+}
+
+.settings-confirm-card h3 {
+    margin: 0;
+    font-size: 1.15rem;
+    color: var(--color-primary);
+}
+
+.settings-confirm-card p {
+    margin: 0;
+    color: var(--color-text-secondary);
+    font-size: 1rem;
+    line-height: 1.45;
+}
+
+.settings-confirm-card p strong {
+    color: var(--color-primary);
+    font-weight: 700;
+}
+
+.settings-confirm-card label {
+    color: var(--color-text);
+    font-size: 0.95rem;
+}
+
+.settings-confirm-card input {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-bg-dark);
+    color: var(--color-text);
+}
+
+.settings-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.settings-confirm-actions button {
+    min-height: 35px;
+    padding: 0 13px;
+    border: 1px solid color-mix(in srgb, var(--color-border-light) 56%, var(--color-border));
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--color-surface-light) 88%, var(--color-surface));
+    color: var(--color-text);
+    box-shadow: var(--shadow-xs);
+    font-size: 0.84rem;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0.01em;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.settings-confirm-actions button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+    border-color: color-mix(in srgb, var(--color-primary) 34%, var(--color-border));
+}
+
+.settings-confirm-actions button:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 26%, transparent);
+}
+
+.settings-confirm-actions button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.settings-confirm-actions .danger-action-btn {
+    border-color: color-mix(in srgb, var(--color-error) 48%, var(--color-border));
+    background: color-mix(in srgb, var(--color-error) 18%, var(--color-surface));
+    color: color-mix(in srgb, var(--color-error) 80%, var(--color-text));
+}
+
+.settings-confirm-actions .danger-action-btn:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--color-error) 64%, var(--color-border));
+    background: color-mix(in srgb, var(--color-error) 24%, var(--color-surface));
+}
+
+/* ===========================
+   SHARED RESPONSIVE DESIGN
+   =========================== */
+@media (max-width: 768px) {
+    body {
+        margin: var(--spacing-md);
+    }
+
+    .header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .tabs {
+        width: 100%;
+    }
+
+    .tab-button {
+        flex: 1;
+        text-align: center;
+        font-size: var(--font-xs);
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
+
+    .header-help-btn {
+        width: 100%;
+    }
+
+    .settings-btn {
+        width: 100%;
+    }
+
+    .tab-content {
+        padding: var(--spacing-md);
+    }
+
+    .add-character {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .add-character input,
+    .add-character select,
+    .add-character button {
+        width: 100%;
+    }
+
+    .character-card {
+        width: 100%;
+    }
+
+    #roster-list {
+        flex-direction: column;
+    }
+}

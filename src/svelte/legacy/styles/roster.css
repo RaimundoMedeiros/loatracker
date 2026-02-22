@@ -1,0 +1,1139 @@
+/* ===========================
+   ROSTER TAB STYLES
+   =========================== */
+.add-character {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-sm);
+    background-color: var(--color-surface);
+    max-width: fit-content;
+}
+
+.add-character input,
+.add-character select {
+    padding: 0 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background-color: var(--color-bg-dark);
+    color: var(--color-text);
+    min-width: 80px;
+    font-size: var(--font-sm);
+    min-height: 34px;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+#char-name {
+    max-width: 170px;
+}
+
+#char-class {
+    max-width: 170px;
+}
+
+#char-ilvl {
+    max-width: 90px;
+}
+
+#char-cp {
+    max-width: 170px;
+}
+
+.add-character button {
+    background-color: var(--color-primary);
+    color: var(--color-bg-dark);
+    border: 1px solid var(--color-border);
+    padding: 0 14px;
+    border-radius: var(--radius-md);
+    min-height: 34px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: var(--font-sm);
+    transition: background var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.add-character button:hover {
+    background-color: var(--color-primary-dark);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+#roster-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, 200px);
+    gap: var(--spacing-sm);
+    justify-content: center;
+}
+
+.character-card {
+    background-color: var(--color-surface-hover);
+    padding: var(--spacing-lg);
+    border-radius: var(--radius-md);
+    width: 200px;
+    min-height: 220px;
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition-fast);
+    cursor: move;
+    border: 1px solid transparent;
+    display: flex;
+    flex-direction: column;
+}
+
+/* CRITICAL: Allow drag events to pass through all children except buttons */
+.character-card h3,
+.character-card p,
+.character-card img {
+    pointer-events: none;
+    user-select: none;
+}
+
+.character-card button {
+    pointer-events: auto;
+}
+
+.character-card:hover {
+    border-color: var(--color-border-light);
+}
+
+.character-card.dragging {
+    opacity: 0.5;
+    transform: scale(0.95);
+    cursor: grabbing;
+}
+
+.character-card:active {
+    cursor: grabbing;
+    opacity: 0.8;
+}
+
+.character-card h3 {
+    margin: 0 0 var(--spacing-sm) 0;
+    color: var(--color-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+    font-size: var(--font-lg);
+}
+
+.character-card p {
+    margin: var(--spacing-xs) 0;
+    font-size: var(--font-sm);
+}
+
+.character-card .card-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    margin-top: auto;
+    align-items: flex-start;
+}
+
+.remove-icon {
+    position: absolute;
+    bottom: var(--spacing-lg);
+    right: var(--spacing-lg);
+    width: 35px;
+    height: 25px;
+    z-index: 1;
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+.remove-icon img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: all var(--transition-fast);
+}
+
+.remove-icon:hover {
+    transform: scale(1.2);
+}
+
+.remove-icon:hover img {
+    filter: brightness(1.8);
+}
+
+.character-card button {
+    padding: 6px var(--spacing-md);
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-size: var(--font-xs);
+    font-weight: 500;
+    transition: all var(--transition-fast);
+}
+
+.hide-weekly-btn {
+    background-color: #3a3f52;
+    color: var(--color-text);
+    white-space: nowrap;
+}
+
+.hide-weekly-btn:hover {
+    background-color: #4a5066;
+}
+
+.edit-btn {
+    background-color: var(--color-warning);
+    color: var(--color-bg-dark);
+    padding-right: var(--spacing-2xl);
+}
+
+.edit-btn:hover {
+    background-color: #e68900;
+    transform: translateY(-1px);
+}
+
+/* Sort Roster Button */
+.form-row {
+    display: flex;
+    gap: 8px;
+}
+
+.form-row input {
+    width: 180px;
+}
+
+.sort-roster-btn {
+    padding: 8px 12px;
+    background-color: var(--color-primary);
+    color: var(--color-bg-dark);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 2;
+}
+
+.sort-roster-btn.active {
+    background-color: rgba(212, 175, 55, 0.15);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+#refresh-roster-btn {
+    color: var(--color-text);
+}
+
+#refresh-roster-btn:hover {
+    color: var(--color-primary);
+}
+
+.sort-roster-btn .btn-label {
+    font-weight: 600;
+}
+
+.cooldown-active {
+    opacity: 0.7;
+    cursor: not-allowed !important;
+}
+
+/* Sort Dropdown */
+.sort-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 4px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-md);
+    z-index: 1100;
+    min-width: 150px;
+    display: block;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(-4px) scale(0.98);
+    transform-origin: top left;
+    transition: opacity var(--transition-fast), transform var(--transition-fast), visibility var(--transition-fast);
+}
+
+.sort-dropdown.visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateY(0) scale(1);
+}
+
+.sort-dropdown button {
+    width: 100%;
+    padding: 10px 14px;
+    background: transparent;
+    border: none;
+    color: var(--color-text-secondary);
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-size: 13px;
+}
+
+.sort-dropdown button:hover {
+    background-color: var(--color-surface-hover);
+    color: var(--color-text);
+}
+
+.sort-dropdown button.selected {
+    color: var(--color-primary);
+    background-color: color-mix(in srgb, var(--color-primary) 12%, transparent);
+}
+
+.sort-dropdown button:first-child {
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+.sort-dropdown button:last-child {
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
+
+/* ===========================
+   ROSTER SWITCHER STYLES
+   =========================== */
+
+#roster-switcher-container {
+    display: inline-flex;
+    align-items: center;
+    position: relative;
+    max-width: 100%;
+    z-index: 60;
+}
+
+#roster-switcher-container > div {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    border: 1px solid color-mix(in srgb, var(--color-border-light) 56%, var(--color-border));
+    border-radius: var(--radius-md);
+    background: linear-gradient(180deg,
+        color-mix(in srgb, var(--color-surface-light) 90%, var(--color-surface)) 0%,
+        color-mix(in srgb, var(--color-surface) 88%, var(--color-bg-darker)) 100%);
+    box-shadow: var(--shadow-sm);
+    backdrop-filter: blur(2px);
+}
+
+.roster-switcher {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: 0;
+    min-width: 0;
+}
+
+.roster-select {
+    background: color-mix(in srgb, var(--color-surface) 90%, var(--color-bg-dark));
+    color: var(--color-text);
+    border: 1px solid color-mix(in srgb, var(--color-border-light) 58%, var(--color-border));
+    border-radius: var(--radius-md);
+    padding: 0 10px;
+    font-size: 0.86rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 164px;
+    height: 31px;
+}
+
+.roster-select:hover {
+    border-color: var(--color-primary);
+    background: var(--color-surface-hover);
+}
+
+.roster-meta-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 58px;
+    height: 28px;
+    padding: 0 7px;
+    border-radius: var(--radius-md);
+    border: 1px solid color-mix(in srgb, var(--color-border-light) 62%, var(--color-border));
+    background: color-mix(in srgb, var(--color-surface-light) 88%, var(--color-surface));
+    color: var(--color-text-secondary);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.roster-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.roster-actions .btn-icon {
+    background: color-mix(in srgb, var(--color-surface-light) 88%, var(--color-surface));
+    border: 1px solid color-mix(in srgb, var(--color-border-light) 56%, var(--color-border));
+    color: var(--color-text-secondary);
+    width: 29px;
+    height: 29px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.84rem;
+    padding: 0;
+}
+
+.roster-actions .btn-icon:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-primary) 22%, var(--color-surface));
+    border-color: color-mix(in srgb, var(--color-primary) 52%, var(--color-border));
+    color: var(--color-primary);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.roster-actions .btn-icon.active {
+    background: color-mix(in srgb, var(--color-primary) 24%, var(--color-surface));
+    border-color: color-mix(in srgb, var(--color-primary) 56%, var(--color-border));
+    color: var(--color-primary);
+}
+
+.roster-actions .btn-icon:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.btn-error {
+    background: var(--color-error);
+    color: white;
+    border: none;
+}
+
+.btn-error:hover {
+    background: color-mix(in srgb, var(--color-error) 85%, var(--color-bg-dark));
+}
+
+#roster-switcher-container .visible-rosters-popover {
+    top: calc(100% + 8px);
+    right: 0;
+    left: auto;
+    width: 300px;
+    border-color: color-mix(in srgb, var(--color-border-light) 58%, var(--color-border));
+    background: linear-gradient(180deg,
+        color-mix(in srgb, var(--color-surface-light) 92%, var(--color-surface)) 0%,
+        color-mix(in srgb, var(--color-surface) 90%, var(--color-bg-darker)) 100%);
+    z-index: 80;
+}
+
+#roster-switcher-container .visible-rosters-popover__header {
+    color: var(--color-primary);
+    letter-spacing: 0.02em;
+    padding: 2px 2px 4px;
+}
+
+#roster-switcher-container .visible-rosters-list {
+    gap: 6px;
+}
+
+#roster-switcher-container .visible-rosters-item {
+    min-height: 34px;
+    padding: 6px 10px;
+    transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+#roster-switcher-container .visible-rosters-item:hover {
+    border-color: color-mix(in srgb, var(--color-primary) 44%, var(--color-border));
+    background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface-light));
+}
+
+#roster-switcher-container .roster-switcher-dialog {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 90;
+    width: 300px;
+    border: 1px solid color-mix(in srgb, var(--color-border-light) 62%, var(--color-border));
+    border-radius: var(--radius-md);
+    background: linear-gradient(180deg,
+        color-mix(in srgb, var(--color-surface-light) 92%, var(--color-surface)) 0%,
+        color-mix(in srgb, var(--color-surface) 90%, var(--color-bg-darker)) 100%);
+    box-shadow: var(--shadow-lg);
+    padding: 10px;
+    display: grid;
+    gap: 8px;
+}
+
+#roster-switcher-container .roster-switcher-dialog__title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--color-primary);
+}
+
+#roster-switcher-container .roster-switcher-dialog__text {
+    margin: 0;
+    font-size: 0.82rem;
+    color: var(--color-text-secondary);
+    line-height: 1.4;
+}
+
+#roster-switcher-container .roster-switcher-dialog__label {
+    font-size: 0.78rem;
+    color: var(--color-text-secondary);
+}
+
+#roster-switcher-container .roster-switcher-dialog input {
+    width: 100%;
+    min-height: 32px;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid color-mix(in srgb, var(--color-border-light) 56%, var(--color-border));
+    background: var(--color-bg-dark);
+    color: var(--color-text);
+}
+
+#roster-switcher-container .roster-switcher-dialog__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+#roster-switcher-container .btn-icon-text {
+    min-height: 30px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+    padding: 0 10px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+#roster-switcher-container .btn-icon-text.primary {
+    border-color: color-mix(in srgb, var(--color-primary) 46%, var(--color-border));
+    background: color-mix(in srgb, var(--color-primary) 18%, var(--color-surface));
+    color: var(--color-primary);
+}
+
+#roster-switcher-container .btn-icon-text:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+/* ===========================
+   ROSTER TAB PROFESSIONAL POLISH
+   =========================== */
+
+#roster-tab {
+    --roster-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --roster-ease-snap: cubic-bezier(0.18, 0.9, 0.28, 1.12);
+    --roster-focus-ring: 0 0 0 2px color-mix(in srgb, var(--color-primary) 40%, transparent);
+    display: grid;
+    gap: var(--spacing-md);
+    width: 100%;
+    max-width: 640px;
+    margin-inline: auto;
+}
+
+#roster-tab .roster-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    gap: var(--spacing-sm);
+    padding-bottom: 8px;
+    border-bottom: 1px solid color-mix(in srgb, var(--color-border-light) 52%, var(--color-border));
+    animation: rosterFadeUp 300ms var(--roster-ease-out) both;
+}
+
+#roster-tab .roster-heading-group {
+    display: grid;
+    gap: var(--spacing-xs);
+    justify-items: center;
+    text-align: center;
+}
+
+#roster-tab .roster-heading-group h1 {
+    margin: 0;
+}
+
+#roster-tab .roster-subtitle {
+    margin: 0;
+    color: var(--color-text-secondary);
+    font-size: var(--font-xs);
+}
+
+#roster-tab .roster-header-actions {
+    display: flex;
+    justify-content: flex-end;
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+#roster-tab .roster-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+}
+
+#roster-tab .roster-summary-chip {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 28%, var(--color-border));
+    background: color-mix(in srgb, var(--color-surface) 88%, var(--color-bg-dark));
+    color: var(--color-text-secondary);
+    border-radius: var(--radius-full);
+    padding: 3px var(--spacing-sm);
+    font-size: var(--font-xs);
+    letter-spacing: 0.02em;
+    transition: border-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+#roster-tab .roster-summary-chip:hover {
+    color: var(--color-text);
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--color-primary) 44%, var(--color-border));
+    box-shadow: var(--shadow-sm);
+}
+
+#roster-tab .roster-controls {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    justify-items: stretch;
+    gap: var(--spacing-xs);
+    padding: 6px;
+    border: 1px solid color-mix(in srgb, var(--color-border-light) 50%, var(--color-border));
+    border-radius: var(--radius-lg);
+    background: color-mix(in srgb, var(--color-surface) 92%, var(--color-bg-darker));
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    overflow: visible;
+    z-index: 20;
+    isolation: isolate;
+    max-width: 620px;
+    width: 100%;
+    margin-inline: auto;
+}
+
+#roster-tab .roster-controls::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(120deg,
+        color-mix(in srgb, var(--color-primary) 12%, transparent) 0%,
+        transparent 28%,
+        transparent 72%,
+        color-mix(in srgb, var(--color-primary-light) 8%, transparent) 100%);
+    opacity: 0.6;
+}
+
+#roster-tab .roster-form-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 240;
+    display: grid;
+    place-items: center;
+    background: color-mix(in srgb, var(--color-bg-darker) 64%, transparent);
+    backdrop-filter: blur(2px);
+}
+
+#roster-tab .roster-form-panel {
+    width: min(620px, calc(100vw - 24px));
+    max-height: calc(100vh - 36px);
+    overflow: auto;
+    border: 1px solid color-mix(in srgb, var(--color-border-light) 58%, var(--color-border));
+    border-radius: var(--radius-lg);
+    background: color-mix(in srgb, var(--color-surface) 94%, var(--color-bg-darker));
+    box-shadow: var(--shadow-lg);
+    padding: var(--spacing-sm);
+}
+
+#roster-tab .roster-form-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-xs);
+}
+
+#roster-tab .roster-form-header h3 {
+    margin: 0;
+}
+
+#roster-tab .roster-form-close {
+    width: 30px;
+    height: 30px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+#roster-tab .add-character {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: center;
+    gap: 6px;
+    padding: 6px;
+    border-color: color-mix(in srgb, var(--color-border-light) 56%, var(--color-border));
+    background: color-mix(in srgb, var(--color-surface-light) 82%, var(--color-surface));
+    max-width: none;
+}
+
+#roster-tab .add-character input,
+#roster-tab .add-character select,
+#roster-tab .add-character button {
+    width: 100%;
+    min-height: 31px;
+}
+
+#roster-tab .add-character input,
+#roster-tab .add-character select {
+    background-color: color-mix(in srgb, var(--color-bg-dark) 74%, var(--color-surface));
+    min-width: 0;
+    transition: border-color var(--transition-fast), background-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+#roster-tab .add-character button {
+    border: 1px solid color-mix(in srgb, var(--color-primary) 36%, var(--color-border));
+    white-space: nowrap;
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast), color var(--transition-fast);
+    font-size: var(--font-xs);
+}
+
+#roster-tab .add-character #add-char {
+    min-width: 112px;
+}
+
+#roster-tab .add-character #char-name,
+#roster-tab .add-character #char-class,
+#roster-tab .add-character #char-ilvl,
+#roster-tab .add-character #char-cp {
+    max-width: 100%;
+}
+
+#roster-tab .add-character input:hover,
+#roster-tab .add-character select:hover {
+    border-color: color-mix(in srgb, var(--color-primary) 34%, var(--color-border));
+}
+
+#roster-tab .add-character input:focus-visible,
+#roster-tab .add-character select:focus-visible,
+#roster-tab .add-character button:focus-visible,
+#roster-tab #sort-roster-btn:focus-visible,
+#roster-tab #refresh-roster-btn:focus-visible,
+#roster-tab #open-add-char-btn:focus-visible,
+#roster-tab #import-mathi-btn:focus-visible,
+#roster-tab .sort-dropdown button:focus-visible,
+#roster-tab .character-card .card-buttons button:focus-visible,
+#roster-tab .remove-icon:focus-visible {
+    outline: none;
+    box-shadow: var(--roster-focus-ring);
+}
+
+#roster-tab .add-character button[type='button']:not(#add-char) {
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+    border-color: var(--color-border);
+}
+
+#roster-tab .add-character button[type='button']:not(#add-char):hover {
+    background: var(--color-surface-hover);
+    color: var(--color-text);
+}
+
+#roster-tab #sort-roster-btn,
+#roster-tab #refresh-roster-btn,
+#roster-tab #open-add-char-btn,
+#roster-tab #import-mathi-btn {
+    width: auto;
+    min-width: 92px;
+    justify-content: center;
+    min-height: 27px;
+    padding-inline: 7px;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast), color var(--transition-fast);
+}
+
+#roster-tab #sort-roster-btn .btn-label,
+#roster-tab #refresh-roster-btn .btn-label,
+#roster-tab #open-add-char-btn .btn-label,
+#roster-tab #import-mathi-btn .btn-label {
+    font-size: var(--font-xs);
+    line-height: 1;
+}
+
+#roster-tab #import-mathi-btn .btn-icon-image {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+#roster-tab #sort-roster-btn,
+#roster-tab #refresh-roster-btn,
+#roster-tab #open-add-char-btn,
+#roster-tab #import-mathi-btn {
+    background: var(--color-surface-light);
+    border-color: color-mix(in srgb, var(--color-primary) 34%, var(--color-border));
+    color: var(--color-text);
+}
+
+#roster-tab #sort-roster-btn {
+    justify-self: start;
+    grid-column: 1;
+}
+
+#roster-tab #refresh-roster-btn {
+    justify-self: end;
+    grid-column: 3;
+}
+
+#roster-tab .add-character-source-group {
+    grid-column: 2;
+    justify-self: center;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 4px 8px;
+    border-radius: var(--radius-md);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 26%, var(--color-border));
+    background: color-mix(in srgb, var(--color-surface-light) 86%, var(--color-surface));
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-primary-light) 10%, transparent);
+}
+
+#roster-tab .add-character-source-title {
+    font-size: var(--font-xs);
+    color: var(--color-text-secondary);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+#roster-tab .add-character-source-title::before,
+#roster-tab .add-character-source-title::after {
+    content: '—';
+    color: color-mix(in srgb, var(--color-primary) 46%, var(--color-border));
+    font-weight: 700;
+}
+
+#roster-tab .add-character-source-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: center;
+    gap: 6px;
+    min-width: 216px;
+}
+
+#roster-tab .add-character-source-actions #open-add-char-btn,
+#roster-tab .add-character-source-actions #import-mathi-btn {
+    min-width: 108px;
+    width: 100%;
+    justify-content: center;
+    height: 32px;
+    min-height: 32px;
+    padding-block: 0;
+}
+
+#roster-tab #sort-roster-btn:hover:not(.cooldown-active),
+#roster-tab #refresh-roster-btn:hover:not(:disabled),
+#roster-tab #open-add-char-btn:hover:not(:disabled),
+#roster-tab #import-mathi-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+#roster-tab #sort-roster-btn:hover:not(.cooldown-active),
+#roster-tab #refresh-roster-btn:hover:not(:disabled),
+#roster-tab #import-mathi-btn:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface-light));
+    color: var(--color-primary);
+}
+
+#roster-tab #roster-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 620px;
+    margin-inline: auto;
+}
+
+#roster-tab .roster-empty {
+    grid-column: 1 / -1;
+    border: 1px dashed color-mix(in srgb, var(--color-border-light) 58%, var(--color-border));
+    border-radius: var(--radius-lg);
+    background: color-mix(in srgb, var(--color-surface-light) 78%, var(--color-surface));
+    padding: var(--spacing-xl);
+    text-align: center;
+}
+
+#roster-tab .character-card {
+    width: auto;
+    min-height: 224px;
+    padding-bottom: var(--spacing-md);
+    border: 1px solid color-mix(in srgb, var(--color-border-light) 58%, var(--color-border));
+    background: linear-gradient(180deg,
+        color-mix(in srgb, var(--color-surface-light) 90%, var(--color-surface)) 0%,
+        color-mix(in srgb, var(--color-surface) 88%, var(--color-bg-darker)) 100%);
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    transition: transform var(--transition-fast) var(--roster-ease-out), box-shadow var(--transition-fast), border-color var(--transition-fast), opacity var(--transition-fast);
+}
+
+#roster-tab .character-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    border-color: color-mix(in srgb, var(--color-primary) 36%, var(--color-border));
+}
+
+#roster-tab .character-card:focus-within {
+    border-color: color-mix(in srgb, var(--color-primary) 42%, var(--color-border));
+    box-shadow: var(--roster-focus-ring), var(--shadow-md);
+}
+
+#roster-tab .character-card h3 {
+    max-width: calc(100% - 44px);
+    margin-bottom: var(--spacing-sm);
+}
+
+#roster-tab .character-class-icon {
+    position: absolute;
+    top: var(--spacing-md);
+    right: var(--spacing-md);
+    width: 30px;
+    height: 30px;
+    pointer-events: none;
+    z-index: 1;
+    transition: transform var(--transition-fast) var(--roster-ease-snap), filter var(--transition-fast);
+}
+
+#roster-tab .character-card:hover .character-class-icon {
+    transform: translateY(-1px) scale(1.06);
+    filter: drop-shadow(0 0 8px color-mix(in srgb, var(--color-primary) 26%, transparent));
+}
+
+#roster-tab .character-card .card-actions {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    column-gap: 8px;
+    row-gap: 6px;
+    margin-top: auto;
+    align-items: center;
+}
+
+#roster-tab .character-card .card-actions button {
+    width: auto;
+    max-width: 100%;
+    border: 1px solid color-mix(in srgb, var(--color-border-light) 52%, var(--color-border));
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+}
+
+#roster-tab .character-card .card-buttons button:hover {
+    background: var(--color-surface-hover);
+    color: var(--color-text);
+    border-color: color-mix(in srgb, var(--color-primary) 34%, var(--color-border));
+    transform: translateY(-1px);
+}
+
+#roster-tab .character-card .hide-weekly-btn {
+    grid-column: 1;
+    grid-row: 2;
+    background: color-mix(in srgb, var(--color-surface-light) 84%, var(--color-surface));
+}
+
+#roster-tab .character-card .edit-btn {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: start;
+    background: color-mix(in srgb, var(--color-warning) 26%, var(--color-surface));
+    color: var(--color-text);
+    border-color: color-mix(in srgb, var(--color-warning) 42%, var(--color-border));
+    padding-right: var(--spacing-sm);
+}
+
+#roster-tab .remove-icon {
+    position: static;
+    grid-column: 2;
+    grid-row: 2;
+    align-self: center;
+    justify-self: end;
+    width: 28px;
+    height: 20px;
+    z-index: 3;
+}
+
+#roster-tab .remove-icon:hover {
+    transform: translateY(-1px) scale(1.08);
+}
+
+#roster-tab .remove-icon:hover img {
+    filter: brightness(1.25);
+}
+
+#roster-tab .character-card.dragging {
+    opacity: 0.72;
+    transform: scale(0.98);
+    border-color: color-mix(in srgb, var(--color-primary) 52%, var(--color-border));
+    box-shadow: var(--shadow-lg);
+}
+
+#roster-tab #roster-list.drag-active .character-card .card-buttons button,
+#roster-tab #roster-list.drag-active .character-card .remove-icon {
+    pointer-events: none;
+}
+
+#roster-tab .character-card:not(.dragging) {
+    animation: rosterCardIn 320ms var(--roster-ease-out) both;
+}
+
+#roster-tab .character-card:nth-child(2n) { animation-delay: 25ms; }
+#roster-tab .character-card:nth-child(3n) { animation-delay: 45ms; }
+#roster-tab .character-card:nth-child(4n) { animation-delay: 65ms; }
+
+#roster-tab .roster-summary {
+    animation: rosterFadeUp 340ms var(--roster-ease-out) both;
+}
+
+#roster-tab .roster-controls {
+    animation: rosterFadeUp 380ms var(--roster-ease-out) both;
+}
+
+@keyframes rosterFadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes rosterCardIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.985);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #roster-tab .roster-header,
+    #roster-tab .roster-summary,
+    #roster-tab .roster-controls,
+    #roster-tab .character-card:not(.dragging) {
+        animation: none;
+    }
+
+    #roster-tab .character-card,
+    #roster-tab .character-class-icon,
+    #roster-tab .sort-dropdown,
+    #roster-tab .add-character input,
+    #roster-tab .add-character select,
+    #roster-tab .add-character button,
+    #roster-tab #sort-roster-btn,
+    #roster-tab #refresh-roster-btn,
+    #roster-tab .roster-summary-chip,
+    #roster-tab .character-card .card-buttons button,
+    #roster-tab .remove-icon {
+        transition: none;
+    }
+}
+
+@media (max-width: 900px) {
+    #roster-tab .roster-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    #roster-tab .roster-header-actions {
+        position: static;
+        right: auto;
+        top: auto;
+        transform: none;
+        justify-content: flex-start;
+    }
+
+    #roster-tab .roster-controls {
+        grid-template-columns: 1fr;
+        justify-items: stretch;
+    }
+
+    #roster-tab .add-character-source-group {
+        grid-column: 1;
+        justify-self: stretch;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+        grid-template-columns: 1fr;
+        padding: 6px;
+    }
+
+    #roster-tab .add-character-source-title {
+        text-align: center;
+        justify-content: center;
+    }
+
+    #roster-tab .add-character-source-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--spacing-xs);
+        min-width: 0;
+    }
+
+    #roster-tab .add-character button {
+        width: 100%;
+    }
+
+    #roster-tab #roster-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    #roster-tab #sort-roster-btn,
+    #roster-tab #refresh-roster-btn,
+    #roster-tab #open-add-char-btn,
+    #roster-tab #import-mathi-btn {
+        width: 100%;
+        min-width: 0;
+        justify-self: stretch;
+        grid-column: 1;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 640px) {
+    #roster-tab .add-character {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    #roster-tab #roster-list {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+

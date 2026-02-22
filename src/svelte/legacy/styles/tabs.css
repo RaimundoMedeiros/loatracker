@@ -1,0 +1,73 @@
+/* ===========================
+   TAB CONTENT (CORE)
+   =========================== */
+.tab-content {
+    padding: var(--spacing-xl);
+    background-color: var(--color-surface);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    max-width: 1200px;
+    margin: 0 auto;
+    position: relative;
+    overflow: visible;
+}
+
+#friends-tab.tab-content {
+    max-width: 1620px;
+    width: min(1620px, 100%);
+}
+
+/* Allow weekly tab to expand beyond default max-width */
+#weekly-tab.tab-content {
+    max-width: none;
+    width: max-content;
+    overflow: visible;
+}
+
+/* Weekly tab now hosts multiple cards */
+#weekly-tab {
+    width: max-content;
+    max-width: none;
+    margin-left: auto;
+    margin-right: auto;
+    overflow: visible;
+}
+
+.weekly-cards {
+    display: flex;
+    gap: var(--spacing-xl);
+    padding: 12px 0;
+    align-items: flex-start;
+    width: max-content;
+    max-width: none;
+    justify-content: center;
+    box-sizing: border-box;
+    margin: 0 auto;
+}
+
+/* Main content adapts to cards and scrolls when needed */
+#main-content {
+    width: max-content;
+    max-width: 100%;
+    margin: 0 auto;
+    overflow-x: auto;
+    overflow-y: visible;
+}
+
+.weekly-card {
+    padding: 14px 16px 16px;
+    background-color: var(--color-surface);
+    border: 1px solid color-mix(in srgb, var(--color-border-light) 56%, var(--color-border));
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    overflow: visible;
+    flex: 0 0 auto;
+    width: fit-content;
+    max-width: 100%;
+}
+
+.weekly-card .tracker-table {
+    width: 100%;
+}

@@ -1,0 +1,18 @@
+{
+  "name": "WeeklyTracker LA",
+  "short_name": "WTL",
+  "description": "Weekly raid tracker for Lost Ark",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b0d12",
+  "theme_color": "#0b0d12",
+  "icons": [
+    {
+      "src": "./assets/icons/icon.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

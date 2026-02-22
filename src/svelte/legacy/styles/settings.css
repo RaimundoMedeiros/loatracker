@@ -1,0 +1,1172 @@
+/* ===========================
+   SETTINGS MODAL
+   =========================== */
+#confirm-modal {
+   display: none;
+   position: fixed;
+   top: 0;
+   left: 0;
+      width: min(94vw, 575px);
+      max-width: 575px;
+      padding: 12px;
+   justify-content: center;
+   align-items: center;
+   background-color: rgba(0, 0, 0, 0.7);
+   backdrop-filter: blur(4px);
+}
+
+#settings-modal,
+#notification-modal,
+#column-settings-modal {
+   display: none;
+      font-size: 1.15em;
+   position: fixed;
+   top: 0;
+   left: 0;
+   width: 100%;
+   height: 100%;
+   z-index: 2000;
+   justify-content: center;
+   align-items: center;
+   background-color: rgba(0, 0, 0, 0.7);
+   backdrop-filter: blur(4px);
+}
+
+#settings-modal {
+   align-items: flex-start;
+   padding: 8px 0;
+}
+
+#confirm-modal[style*="display: block"],
+#settings-modal[style*="display: block"],
+#notification-modal[style*="display: block"],
+#column-settings-modal[style*="display: block"] {
+   display: flex !important;
+}
+
+.modal-overlay {
+   position: absolute;
+   top: 0;
+   left: 0;
+   width: 100%;
+   height: 100%;
+   background-color: transparent;
+   z-index: 1;
+   pointer-events: none;
+}
+
+.modal {
+   display: none;
+   position: fixed;
+   z-index: 1000;
+   left: 0;
+   top: 0;
+   width: 100%;
+   height: 100%;
+   background-color: rgba(0,0,0,0.7);
+   opacity: 0;
+   transition: opacity 0.3s ease;
+}
+
+.modal.modal-open {
+   opacity: 1;
+}
+
+.modal-content {
+   position: relative;
+   z-index: 2;
+   background-color: var(--color-surface);
+   padding: var(--spacing-2xl);
+   border-radius: var(--radius-lg);
+   box-shadow: var(--shadow-lg);
+   width: 90%;
+   max-width: 500px;
+   border: 2px solid var(--color-border);
+   transform: scale(0.7);
+   transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+   font-size: 16px;
+}
+
+.modal-content p,
+.modal-content .confirm-message {
+   font-size: 18px;
+   line-height: 1.6;
+   margin: 0 0 var(--spacing-lg) 0;
+   color: var(--color-text);
+}
+
+.modal.modal-open .modal-content {
+   transform: scale(1);
+}
+
+.modal-content h2 {
+   margin-top: 0;
+   color: var(--color-primary);
+   font-size: var(--font-2xl);
+}
+
+#friends-setup-modal .friends-setup-modal__content {
+   width: min(95vw, 1080px);
+   max-width: min(95vw, 1080px);
+   max-height: min(92vh, 900px);
+   transform: none;
+   padding: var(--spacing-xl);
+   font-size: inherit;
+}
+
+.modal-content input {
+   width: 100%;
+   padding: var(--spacing-sm);
+   margin: var(--spacing-sm) 0 var(--spacing-lg) 0;
+   border: 1px solid var(--color-border);
+   border-radius: var(--radius-sm);
+   background-color: var(--color-bg-dark);
+   color: var(--color-text);
+   font-size: var(--font-md);
+   transition: all var(--transition-fast);
+}
+
+.modal-buttons {
+   display: flex;
+   gap: var(--spacing-sm);
+   justify-content: flex-end;
+}
+
+.modal-buttons button {
+   padding: 12px 24px;
+   border: none;
+   border-radius: var(--radius-sm);
+   cursor: pointer;
+   font-weight: bold;
+   font-size: 16px;
+}
+
+.modal-buttons button.primary,
+.modal-buttons button:first-child {
+   background-color: var(--color-primary);
+   color: var(--color-bg-dark);
+}
+
+.modal-subtitle {
+   color: #a8b2c7;
+   margin: 0 0 var(--spacing-md) 0;
+   font-size: 0.95rem;
+}
+
+.column-settings-modal {
+   max-width: 520px;
+}
+
+.column-settings-list {
+   display: flex;
+   flex-direction: column;
+   gap: var(--spacing-sm);
+   margin: var(--spacing-md) 0 var(--spacing-lg);
+}
+
+.column-settings-item {
+   display: flex;
+   align-items: flex-start;
+   gap: var(--spacing-md);
+   padding: var(--spacing-md);
+   border: 1px solid var(--color-border);
+   border-radius: var(--radius-md);
+   background-color: var(--color-surface-light);
+   cursor: pointer;
+   transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.column-settings-item:hover {
+   border-color: var(--color-primary);
+   box-shadow: var(--shadow-sm);
+   transform: translateY(-1px);
+}
+
+
+.column-settings-item input {
+   width: 18px;
+   height: 18px;
+   cursor: pointer;
+   margin-top: 2px;
+}
+
+.column-settings-title {
+   font-weight: 700;
+   color: var(--color-text);
+}
+
+.column-settings-sub {
+   color: #a3adc2;
+   font-size: 0.9rem;
+}
+
+.modal-buttons button.primary:hover,
+.modal-buttons button:first-child:hover {
+   background-color: var(--color-primary-dark);
+}
+
+.modal-buttons button:first-child:focus {
+   outline: none;
+   box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.4);
+}
+
+.modal-buttons button:last-child {
+   background-color: var(--color-surface-hover);
+   color: var(--color-text);
+}
+
+.modal-buttons button:last-child:hover {
+   background-color: var(--color-border-light);
+}
+
+.modal-buttons button:last-child:focus {
+   outline: none;
+   box-shadow: 0 0 0 3px rgba(64, 69, 88, 0.6);
+}
+
+/* Confirm modal specific styles */
+#confirm-modal .modal-content {
+   position: relative;
+   z-index: 2101;
+}
+
+/* Settings modal specific styles */
+#settings-modal > .modal-content {
+   position: relative;
+   z-index: 2001;
+   width: min(92vw, 500px);
+   max-width: 500px;
+   padding: 10px;
+   max-height: calc(100vh - 18px);
+   overflow-y: auto;
+   transform: none;
+   transition: none;
+}
+
+.close-btn {
+   position: absolute;
+   top: var(--spacing-sm);
+   right: var(--spacing-md);
+   background: none;
+   border: none;
+   font-size: var(--font-2xl);
+   cursor: pointer;
+   color: var(--color-text);
+   padding: 0;
+   width: 30px;
+   height: 30px;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   border-radius: var(--radius-full);
+}
+
+.close-btn:hover {
+   background-color: var(--color-surface-hover);
+}
+
+.close-btn:focus {
+   outline: none;
+   box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.4);
+}
+
+#settings-close {
+   z-index: 2105;
+   width: 38px;
+   height: 38px;
+   top: 6px;
+   right: 8px;
+   pointer-events: auto;
+}
+
+#settings-modal h1 {
+   color: var(--color-primary);
+   margin-bottom: 8px;
+   text-align: center;
+   font-size: 20px;
+}
+
+#settings-modal .settings-section {
+   margin-bottom: 10px;
+}
+
+#settings-modal .settings-section h3 {
+   margin-bottom: 4px;
+   font-size: 16px;
+}
+
+#settings-modal .settings-section input:not([type="checkbox"]),
+#settings-modal .settings-section select {
+   max-width: 230px;
+   padding: 8px 10px;
+   font-size: 15px;
+   height: 38px;
+}
+
+#settings-modal .db-drop-zone {
+   min-height: 64px;
+   padding: 8px;
+   font-size: 0.82rem;
+}
+
+#settings-modal .modal-buttons button {
+   padding: 8px 12px;
+   font-size: 13px;
+}
+
+#settings-modal .db-status-label,
+#settings-modal .db-status-value {
+   font-size: 0.8rem;
+}
+
+#settings-modal .db-action-buttons button {
+   min-height: 32px;
+   font-size: 0.78rem;
+   padding: 5px 8px;
+}
+
+#settings-modal .settings-compact-hint,
+#settings-modal .settings-danger-copy,
+#settings-modal .db-permission-help {
+   font-size: 0.75rem;
+   line-height: 1.35;
+   margin: 2px 0 6px;
+   color: var(--color-text-secondary);
+   text-align: center;
+}
+
+#settings-modal .db-permission-help {
+   margin-top: 4px;
+}
+
+#settings-modal .settings-danger-copy {
+   margin-bottom: 6px;
+}
+
+#settings-modal .settings-danger-zone {
+   margin-top: 2px;
+   margin-bottom: 8px;
+   padding-top: 6px;
+}
+
+#settings-modal .settings-auto-raid-toggle {
+   display: flex;
+   align-items: flex-start;
+   justify-content: center;
+   align-self: center;
+   gap: 8px;
+   margin-top: 6px;
+   width: auto;
+   max-width: none;
+   color: var(--color-text);
+   font-size: 0.86rem;
+   line-height: 1.35;
+   text-align: left;
+}
+
+#settings-modal .settings-auto-raid-toggle input[type="checkbox"] {
+   flex: 0 0 auto;
+   margin-top: 1px;
+   width: 18px;
+   height: 18px;
+   accent-color: var(--color-primary);
+}
+
+#settings-modal .settings-auto-raid-toggle span {
+   display: block;
+   flex: 1;
+   min-width: 0;
+   white-space: normal;
+   overflow-wrap: break-word;
+   word-break: normal;
+}
+
+#settings-modal .modal-buttons {
+   margin-top: 8px;
+}
+
+#settings-close {
+   width: 34px;
+   height: 34px;
+}
+
+/* Settings header with update button */
+.settings-header {
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   gap: var(--spacing-lg);
+   margin-bottom: 10px;
+   position: relative;
+}
+
+.settings-header h1 {
+   margin: 0;
+}
+
+/* Update button in header */
+.update-button-header {
+   background-color: var(--color-primary);
+   color: var(--color-text);
+   border: 1px solid var(--color-primary);
+   padding: 8px 16px;
+   border-radius: var(--radius-sm);
+   cursor: pointer;
+   font-size: 13px;
+   font-weight: 500;
+   display: flex;
+   align-items: center;
+   gap: 6px;
+   transition: all var(--transition-fast);
+   position: absolute;
+   left: 0;
+}
+
+.update-button-header:hover:not(:disabled) {
+   background-color: #3d85d9;
+   transform: translateY(-1px);
+}
+
+.update-button-header:disabled {
+   opacity: 0.6;
+   cursor: not-allowed;
+}
+
+.update-button-header .update-icon {
+   font-size: 14px;
+   animation: bounce 2s ease-in-out infinite;
+}
+
+@keyframes bounce {
+   0%, 100% {
+      transform: translateY(0);
+   }
+   50% {
+      transform: translateY(-2px);
+   }
+}
+
+.update-button-header .update-text {
+   font-size: 13px;
+}
+
+.settings-section {
+   margin-bottom: var(--spacing-xl);
+}
+
+.settings-section h3 {
+   color: var(--color-primary);
+   margin-bottom: var(--spacing-md);
+   font-size: 24px;
+   font-weight: 700;
+   line-height: 1.25;
+}
+
+.settings-section input:not([type="checkbox"]),
+.settings-section select {
+   width: 100%;
+   max-width: 300px;
+   padding: 14px 18px;
+   background-color: var(--color-bg-dark);
+   border: 1px solid var(--color-border);
+   border-radius: var(--radius-sm);
+   color: var(--color-text);
+   font-size: 18px;
+   height: 50px;
+   transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
+}
+
+/* Database section */
+.settings-section:first-of-type {
+   display: flex;
+   flex-direction: column;
+}
+
+.db-drop-zone {
+   margin-top: var(--spacing-md);
+   margin-bottom: var(--spacing-md);
+   padding: 18px;
+   min-height: 120px;
+   border: 1px dashed #6b7280;
+   border-radius: var(--radius-md);
+   color: #d1d5db;
+   font-size: 0.95rem;
+   text-align: center;
+   background: rgba(107, 114, 128, 0.08);
+   transition: border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   line-height: 1.5;
+}
+
+.db-drop-zone.dragover {
+   border-color: #8b5cf6;
+   background: rgba(139, 92, 246, 0.12);
+   color: #f3e8ff;
+}
+
+.db-drop-zone.success {
+   border-color: #15803d;
+   background: rgba(21, 128, 61, 0.18);
+   color: #dcfce7;
+}
+
+.db-drop-zone.error {
+   border-color: #dc2626;
+   background: rgba(220, 38, 38, 0.16);
+   color: #fecaca;
+}
+
+/* Progress bar shown while streaming encounters.db to OPFS */
+.db-copy-progress {
+   position: relative;
+   height: 22px;
+   min-height: 22px;
+   background: var(--color-surface);
+   border: 1px solid var(--color-border);
+   border-radius: var(--radius-sm);
+   margin-top: 6px;
+   overflow: hidden;
+   flex-shrink: 0;
+}
+
+.db-copy-progress__bar {
+   display: block;
+   height: 100%;
+   width: 0%;
+   background: var(--color-primary);
+   opacity: 0.35;
+   transition: width 0.2s linear;
+}
+
+.db-copy-progress__label {
+   position: absolute;
+   top: 0;
+   left: 0;
+   right: 0;
+   bottom: 0;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   font-size: var(--font-xs);
+   color: var(--color-text);
+   font-weight: 600;
+   pointer-events: none;
+}
+
+.db-guide-btn {
+   align-self: center;
+   margin: 0 0 8px;
+   padding: 9px 12px;
+   border: 1px solid var(--color-border);
+   border-radius: var(--radius-md);
+   background: var(--color-surface);
+   color: var(--color-text);
+   cursor: pointer;
+   font-size: 0.9rem;
+   font-weight: 600;
+   letter-spacing: 0.1px;
+   transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.db-guide-btn:hover {
+   background: var(--color-surface-hover);
+   border-color: var(--color-primary);
+   box-shadow: var(--shadow-sm);
+   transform: translateY(-1px);
+}
+
+.db-guide-modal {
+   position: fixed;
+   inset: 0;
+   z-index: 10010;
+   display: none;
+   align-items: center;
+   justify-content: center;
+   background-color: rgba(0, 0, 0, 0.7);
+   backdrop-filter: blur(4px);
+}
+
+.db-guide-modal .modal-overlay {
+   display: none;
+}
+
+.db-guide-modal .modal-content {
+   transform: none;
+   transition: none;
+   border-width: 1px;
+   max-width: 760px;
+   width: 94%;
+   max-height: 88vh;
+   overflow-y: auto;
+}
+
+.db-guide-content {
+   padding-top: calc(var(--spacing-2xl) + 6px);
+}
+
+.db-guide-content h2 {
+   margin-bottom: var(--spacing-sm);
+}
+
+.db-guide-subtitle {
+   margin: 0 0 8px;
+   color: var(--color-text-secondary);
+   font-size: 0.92rem;
+   line-height: 1.45;
+}
+
+.db-guide-steps {
+   margin: 0 0 12px;
+   padding: 12px 14px 12px 30px;
+   border: 1px solid var(--color-border);
+   border-radius: var(--radius-md);
+   background: var(--color-bg-dark);
+   color: var(--color-text);
+   line-height: 1.55;
+   font-size: 0.92rem;
+}
+
+.db-guide-steps li + li {
+   margin-top: 4px;
+}
+
+.db-guide-steps li::marker {
+   color: var(--color-primary);
+   font-weight: 700;
+}
+
+.db-guide-media-wrap {
+   border: 1px solid var(--color-border);
+   border-radius: var(--radius-md);
+   background: var(--color-bg-dark);
+   overflow: hidden;
+}
+
+.db-guide-video,
+.db-guide-gif {
+   width: 100%;
+   display: block;
+   max-height: 360px;
+   object-fit: contain;
+   background: #000;
+}
+
+.db-guide-actions {
+   margin-top: 14px;
+   display: flex;
+   justify-content: flex-end;
+   gap: 8px;
+}
+
+.db-guide-actions #db-guide-got-it {
+   background: var(--color-primary);
+   color: var(--color-bg-dark);
+   border-color: var(--color-primary);
+}
+
+.db-guide-actions #db-guide-got-it:hover {
+   background: var(--color-primary-dark);
+   border-color: var(--color-primary-dark);
+}
+
+.db-permission-status {
+   font-size: 0.85rem;
+   color: #9ca3af;
+   margin-top: 6px;
+   text-align: center;
+}
+
+.db-permission-status.granted {
+   color: #22c55e;
+}
+
+.db-permission-status.denied {
+   color: #f97316;
+}
+
+.db-status-list {
+   display: flex;
+   flex-direction: column;
+   gap: 6px;
+   width: 100%;
+   margin-top: 2px;
+   margin-bottom: 6px;
+}
+
+.db-status-row {
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   gap: var(--spacing-md);
+   border: 1px solid var(--color-border);
+   border-radius: var(--radius-sm);
+   background: var(--color-bg-dark);
+   padding: 6px 10px;
+}
+
+.db-status-label {
+   color: var(--color-text-secondary);
+   font-size: 0.88rem;
+}
+
+.db-status-value {
+   color: var(--color-text);
+   font-size: 0.88rem;
+   font-weight: 700;
+   text-align: right;
+}
+
+.db-action-buttons {
+   display: grid;
+   grid-template-columns: repeat(3, minmax(0, 1fr));
+   gap: 6px;
+   margin-top: 2px;
+}
+
+.db-action-buttons button {
+   margin-top: 0;
+   min-height: 38px;
+   font-size: 0.86rem;
+   padding: 7px 10px;
+}
+
+.settings-danger-zone {
+   border-top: 1px solid var(--color-border);
+   padding-top: 8px;
+}
+
+.settings-danger-copy {
+   margin: 0;
+   color: var(--color-text-secondary);
+   font-size: 0.9rem;
+   text-align: center;
+}
+
+.settings-section .danger-action-btn {
+   background-color: #5f1d1d;
+   color: #ffd4d4;
+}
+
+.settings-section .danger-action-btn:hover {
+   background-color: #7a2626;
+}
+
+.settings-section:not(:first-of-type) {
+   display: flex;
+   flex-direction: column;
+   align-items: center;
+}
+
+.settings-section:not(:first-of-type) h3 {
+   text-align: center;
+}
+
+.settings-section button {
+   margin-top: var(--spacing-sm);
+   padding: var(--spacing-xs) var(--spacing-md);
+   background-color: var(--color-surface-hover);
+   color: var(--color-text);
+   border: none;
+   border-radius: var(--radius-sm);
+   cursor: pointer;
+   font-size: var(--font-md);
+   transition: all var(--transition-normal);
+}
+
+.settings-section button:hover {
+   background-color: var(--color-border-light);
+   transform: translateY(-1px);
+}
+
+.settings-section button:focus {
+   outline: none;
+   box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.3);
+}
+
+@media (max-width: 700px) {
+   .db-action-buttons {
+      grid-template-columns: 1fr;
+   }
+
+   .db-status-row {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 4px;
+   }
+
+   .db-status-value {
+      text-align: left;
+   }
+}
+
+#confirm-yes {
+   background-color: var(--color-error) !important;
+   color: var(--color-text) !important;
+}
+
+#confirm-yes:hover {
+   background-color: #d32f2f !important;
+}
+
+#confirm-yes:focus {
+   outline: none !important;
+   box-shadow: 0 0 0 3px rgba(244, 67, 54, 0.4) !important;
+}
+
+#confirm-no {
+   background-color: var(--color-surface-hover) !important;
+   color: var(--color-text) !important;
+}
+
+#confirm-no:hover {
+   background-color: var(--color-border-light) !important;
+}
+
+#confirm-no:focus {
+   outline: none !important;
+   box-shadow: 0 0 0 3px rgba(64, 69, 88, 0.6) !important;
+}
+
+/* ===========================
+   SVELTE SETTINGS POLISH
+   =========================== */
+#settings-modal #settings-tab {
+   display: flex;
+   flex-direction: column;
+   gap: 8px;
+}
+
+#settings-modal #settings-tab .settings-header {
+   margin-bottom: 2px;
+   flex-direction: column;
+   gap: 4px;
+}
+
+#settings-modal #settings-tab .settings-header .settings-compact-hint {
+   margin: 0;
+   max-width: 320px;
+   text-align: center;
+}
+
+#settings-modal #settings-tab .settings-section {
+   border: 1px solid var(--color-border);
+   border-radius: var(--radius-md);
+   background: var(--color-surface-light);
+   padding: 9px;
+}
+
+#settings-modal #settings-tab .settings-section h3 {
+   margin-top: 0;
+   margin-bottom: 6px;
+}
+
+#settings-modal #settings-tab .db-action-buttons {
+   margin-top: 6px;
+}
+
+#settings-modal #settings-tab .db-action-buttons button {
+   font-size: 0.82rem;
+   letter-spacing: 0.1px;
+}
+
+#settings-modal #settings-tab .db-status-row {
+   background: var(--color-bg-dark);
+}
+
+#settings-modal #settings-tab .settings-auto-raid-toggle {
+   margin-top: 8px;
+   margin-bottom: 2px;
+}
+
+#settings-modal #settings-tab .db-permission-help {
+   max-width: 340px;
+   margin-left: auto;
+   margin-right: auto;
+}
+
+#settings-modal #settings-tab .settings-danger-zone {
+   border-top: 1px solid var(--color-border);
+}
+
+#settings-modal #settings-tab .modal-buttons {
+   margin-top: 4px;
+   padding-top: 2px;
+}
+
+/* ===========================
+   SVELTE SETTINGS PRO UPGRADE
+   =========================== */
+
+#settings-modal > .modal-content {
+   width: min(95vw, 632px);
+   max-width: 632px;
+   padding: 12px;
+}
+
+#settings-modal #settings-tab {
+   gap: 9px;
+   font-size: 1.26em;
+}
+
+#settings-modal #settings-tab .settings-bottom-grid {
+   display: grid;
+   grid-template-columns: repeat(2, minmax(0, 1fr));
+   gap: 7px;
+}
+
+#settings-modal #settings-tab .settings-section--db {
+   margin-bottom: 0;
+}
+
+#settings-modal #settings-tab .settings-header--professional {
+   display: grid;
+   gap: 6px;
+   justify-items: center;
+   margin-bottom: 4px;
+}
+
+#settings-modal #settings-tab .settings-header--professional .settings-header-chips {
+   display: flex;
+   gap: 6px;
+   flex-wrap: wrap;
+   justify-content: center;
+}
+
+#settings-modal #settings-tab .settings-chip {
+   border: 1px solid color-mix(in srgb, var(--color-border-light) 60%, var(--color-border));
+   background: color-mix(in srgb, var(--color-surface) 90%, var(--color-bg-dark));
+   color: var(--color-text-secondary);
+   border-radius: var(--radius-full);
+   padding: 3px 10px;
+   font-size: var(--font-xs);
+   line-height: 1.4;
+   letter-spacing: 0.02em;
+}
+
+#settings-modal #settings-tab .settings-chip.is-positive {
+   border-color: color-mix(in srgb, var(--color-success) 44%, var(--color-border));
+   color: color-mix(in srgb, var(--color-success) 82%, #fff);
+}
+
+#settings-modal #settings-tab .settings-chip.is-warning {
+   border-color: color-mix(in srgb, var(--color-warning) 44%, var(--color-border));
+   color: color-mix(in srgb, var(--color-warning) 82%, #fff);
+}
+
+#settings-modal #settings-tab .settings-section {
+   border: 1px solid color-mix(in srgb, var(--color-border-light) 58%, var(--color-border));
+   background: linear-gradient(180deg,
+      color-mix(in srgb, var(--color-surface-light) 92%, var(--color-surface)) 0%,
+      color-mix(in srgb, var(--color-surface) 88%, var(--color-bg-darker)) 100%);
+   box-shadow: var(--shadow-sm);
+   padding: 8px;
+}
+
+#settings-modal #settings-tab .settings-section h3 {
+   font-size: 19px;
+   letter-spacing: 0.02em;
+   margin-bottom: 5px;
+}
+
+#settings-modal #settings-tab .settings-bottom-grid .settings-section h3 {
+   text-align: center;
+}
+
+#settings-modal #settings-tab .db-drop-zone {
+   min-height: 64px;
+   border-style: solid;
+   border-color: color-mix(in srgb, var(--color-border-light) 62%, var(--color-border));
+   background: color-mix(in srgb, var(--color-surface) 84%, var(--color-bg-dark));
+}
+
+#settings-modal #settings-tab .db-status-list {
+   display: grid;
+   grid-template-columns: 1fr;
+   gap: 6px;
+   margin-top: 0;
+   margin-bottom: 2px;
+}
+
+#settings-modal #settings-tab .db-status-row {
+   align-items: center;
+   justify-content: space-between;
+   flex-direction: row;
+   gap: 8px;
+   padding: 5px 7px;
+}
+
+#settings-modal #settings-tab .db-status-label,
+#settings-modal #settings-tab .db-status-value {
+   font-size: 0.97rem;
+   line-height: 1.2;
+}
+
+#settings-modal #settings-tab .db-status-value {
+   text-align: right;
+}
+
+#settings-modal #settings-tab .db-permission-help,
+#settings-modal #settings-tab .settings-danger-copy,
+#settings-modal #settings-tab .settings-compact-hint {
+   font-size: 0.94rem;
+   line-height: 1.3;
+   margin: 2px 0 4px;
+}
+
+#settings-modal #settings-tab .db-action-buttons {
+   grid-template-columns: repeat(3, minmax(0, 1fr));
+   gap: 6px;
+}
+
+#settings-modal #settings-tab .db-action-buttons button,
+#settings-modal #settings-tab .modal-buttons button,
+#settings-modal #settings-tab .db-guide-btn,
+#settings-modal #settings-tab .danger-action-btn {
+   min-height: 41px;
+   font-size: 0.99rem;
+   padding: 7px 12px;
+}
+
+#settings-modal #settings-tab .settings-chip {
+   font-size: 0.95rem;
+   padding: 5px 13px;
+}
+
+#settings-modal #settings-tab .settings-confirm-card {
+   width: min(95vw, 506px);
+}
+
+#settings-modal #settings-tab .settings-confirm-card h3 {
+   font-size: 1.26rem;
+}
+
+#settings-modal #settings-tab .settings-confirm-card p {
+   font-size: 1.1rem;
+}
+
+#settings-modal #settings-tab .settings-confirm-card label {
+   font-size: 1.05rem;
+}
+
+#settings-modal #settings-tab .settings-auto-raid-toggle {
+   margin-top: 6px;
+   margin-bottom: 0;
+}
+
+@media (max-width: 760px) {
+   #settings-modal > .modal-content {
+      width: min(94vw, 506px);
+      max-width: 506px;
+      max-height: calc(100vh - 14px);
+   }
+
+   #settings-modal #settings-tab .settings-bottom-grid {
+      grid-template-columns: 1fr;
+   }
+
+   #settings-modal #settings-tab .db-status-list {
+      grid-template-columns: 1fr;
+   }
+}
+
+#settings-modal #settings-tab .db-drop-zone.dragover {
+   border-color: color-mix(in srgb, var(--color-primary) 65%, var(--color-border));
+   background: color-mix(in srgb, var(--color-primary) 14%, var(--color-surface));
+   color: var(--color-text);
+   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-primary) 34%, transparent);
+}
+
+#settings-modal #settings-tab .db-action-buttons button,
+#settings-modal #settings-tab .modal-buttons button,
+#settings-modal #settings-tab .db-guide-btn,
+#settings-modal #settings-tab .danger-action-btn {
+   border: 1px solid color-mix(in srgb, var(--color-border-light) 56%, var(--color-border));
+   box-shadow: var(--shadow-xs);
+   transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast), color var(--transition-fast);
+}
+
+#settings-modal #settings-tab .db-action-buttons button:hover:not(:disabled),
+#settings-modal #settings-tab .modal-buttons button:hover:not(:disabled),
+#settings-modal #settings-tab .db-guide-btn:hover:not(:disabled),
+#settings-modal #settings-tab .danger-action-btn:hover:not(:disabled) {
+   transform: translateY(-1px);
+   box-shadow: var(--shadow-sm);
+}
+
+#settings-modal #settings-tab .db-status-row {
+   border-color: color-mix(in srgb, var(--color-border-light) 54%, var(--color-border));
+}
+
+#settings-modal #settings-tab .db-permission-help,
+#settings-modal #settings-tab .settings-danger-copy {
+   color: #bac3d7;
+}
+
+#settings-modal #settings-tab .settings-confirm-overlay {
+   position: fixed;
+   inset: 0;
+   z-index: 2200;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   background: rgba(5, 8, 14, 0.74);
+   backdrop-filter: blur(3px);
+}
+
+#settings-modal #settings-tab .settings-confirm-card {
+   width: min(94vw, 460px);
+   border: 1px solid color-mix(in srgb, var(--color-border-light) 62%, var(--color-border));
+   border-radius: var(--radius-lg);
+   background: linear-gradient(180deg,
+      color-mix(in srgb, var(--color-surface-light) 92%, var(--color-surface)) 0%,
+      color-mix(in srgb, var(--color-surface) 88%, var(--color-bg-darker)) 100%);
+   box-shadow: var(--shadow-lg);
+   padding: 14px;
+   display: grid;
+   gap: 8px;
+}
+
+#settings-modal #settings-tab .settings-confirm-card h3 {
+   margin: 0;
+   font-size: 1.15rem;
+   color: var(--color-primary);
+}
+
+#settings-modal #settings-tab .settings-confirm-card p {
+   margin: 0;
+   color: var(--color-text-secondary);
+   font-size: 1rem;
+   line-height: 1.45;
+}
+
+#settings-modal #settings-tab .settings-confirm-card label {
+   color: var(--color-text);
+   font-size: 0.95rem;
+}
+
+#settings-modal #settings-tab .settings-confirm-card input {
+   width: 100%;
+   padding: 9px 10px;
+   border: 1px solid var(--color-border);
+   border-radius: var(--radius-sm);
+   background: var(--color-bg-dark);
+   color: var(--color-text);
+}
+
+#settings-modal #settings-tab .settings-confirm-actions {
+   display: flex;
+   justify-content: flex-end;
+   gap: 8px;
+}
+
+#settings-modal #settings-tab .settings-confirm-actions button {
+   min-height: 34px;
+   padding: 0 12px;
+}
+
+#settings-modal #settings-tab .settings-confirm-actions .danger-action-btn {
+   border-color: color-mix(in srgb, var(--color-error) 45%, var(--color-border));
+}
+

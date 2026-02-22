@@ -1,0 +1,21 @@
+{
+  "name": "weeklytrackerla-svelte-only",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --mode svelte",
+    "build": "vite build --mode svelte",
+    "preview": "vite preview --mode svelte",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^5.1.0",
+    "svelte": "^5.20.2",
+    "typescript": "^5.8.2",
+    "vite": "^6.0.0"
+  },
+  "dependencies": {
+    "wa-sqlite": "^1.0.0"
+  }
+}
