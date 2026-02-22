@@ -2,7 +2,7 @@
   import { onDestroy, onMount, tick } from 'svelte';
   import { UIHelper } from '../../utils/uiHelper';
   import { CHARACTER_CLASSES, CLASS_ICONS, MATHI_API_CONFIG, TOAST_TYPES, mapApiClassToDisplay } from '../../legacy/config/constants.js';
-  import { BibleApiService } from '../../services/BibleApiService';
+  import { BibleApiRequestError, BibleApiService } from '../../services/BibleApiService';
   import type { BibleRegion } from '../../services/BibleApiService';
   import {
     formatCombatPowerDisplay,
@@ -267,7 +267,22 @@
 
     bibleLoading = true;
     const completed = await withAsyncError(async () => {
-      const payload = await BibleApiService.fetchCharacterByName(bibleRegion, trimmedName);
+      let payload: unknown;
+      try {
+        payload = await BibleApiService.fetchCharacterByName(bibleRegion, trimmedName);
+      } catch (error) {
+        const isNotFound = error instanceof BibleApiRequestError
+          ? error.status === 404
+          : String(error || '').includes('HTTP 404');
+
+        if (isNotFound) {
+          showToast('Character not found on Bible API. Check the name and region.', TOAST_TYPES.ERROR);
+          return true;
+        }
+
+        throw error;
+      }
+
       const normalized = normalizeMathiCharacterPayload(payload);
 
       if (!normalized.name || normalized.ilvl <= 0) {
@@ -368,7 +383,22 @@
         return true;
       }
 
-      const apiCharacters = await BibleApiService.fetchFullRoster(DEFAULT_MATHI_REGION, firstCharacterName);
+      let apiCharacters: Awaited<ReturnType<typeof BibleApiService.fetchFullRoster>>;
+      try {
+        apiCharacters = await BibleApiService.fetchFullRoster(DEFAULT_MATHI_REGION, firstCharacterName);
+      } catch (error) {
+        const isNotFound = error instanceof BibleApiRequestError
+          ? error.status === 404
+          : String(error || '').includes('HTTP 404');
+
+        if (isNotFound) {
+          showToast('Character not found on Bible API. Check the name and region.', TOAST_TYPES.ERROR);
+          return true;
+        }
+
+        throw error;
+      }
+
       if (!Array.isArray(apiCharacters) || apiCharacters.length === 0) {
         showToast('No characters found on Bible API', TOAST_TYPES.ERROR);
         return true;

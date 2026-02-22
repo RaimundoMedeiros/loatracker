@@ -408,7 +408,7 @@ th, td {
 }
 
 th:first-child, td:first-child {
-   width: 170px;
+   width: 190px;
 }
 
 th {
@@ -459,7 +459,9 @@ tr:nth-child(even) {
 
 .char-cell {
    text-align: left;
-   min-width: 170px;
+   min-width: 190px;
+   width: 190px;
+   max-width: 190px;
 }
 
 .char-name {
@@ -467,18 +469,27 @@ tr:nth-child(even) {
    align-items: center;
    justify-content: space-between;
    gap: var(--spacing-sm);
+   min-width: 0;
 }
 
 .char-name img {
-   border-radius: 6px;
-   border: 1px solid color-mix(in srgb, var(--color-border-light) 60%, var(--color-border));
-   background: color-mix(in srgb, var(--color-surface-light) 80%, var(--color-surface));
+   width: 30px;
+   height: 30px;
+   border: none;
+   flex: 0 0 auto;
 }
 
 .char-name-text {
+   display: block;
+   flex: 1;
+   min-width: 0;
+   max-width: 12ch;
    font-weight: 700;
    color: var(--color-primary);
    letter-spacing: 0.01em;
+   overflow: hidden;
+   text-overflow: ellipsis;
+   white-space: nowrap;
 }
 
 .char-class {
@@ -745,6 +756,10 @@ tr:nth-child(even) {
    td {
       padding: var(--spacing-xs);
    }
+
+   .char-name-text {
+      max-width: 11ch;
+   }
 }
 
 @media (max-width: 480px) {
@@ -754,13 +769,23 @@ tr:nth-child(even) {
 
    th:first-child,
    td:first-child {
-      width: 100px;
+      width: 110px;
+   }
+
+   .char-cell {
+      min-width: 110px;
+      width: 110px;
+      max-width: 110px;
    }
 
    th,
    td {
       width: 60px;
       padding: 2px;
+   }
+
+   .char-name-text {
+      max-width: 8ch;
    }
 
    .difficulty-box {

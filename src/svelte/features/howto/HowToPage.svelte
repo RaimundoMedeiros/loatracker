@@ -55,20 +55,21 @@
   <section class="howto-section" aria-labelledby="howto-roster-title-svelte">
     <h3 id="howto-roster-title-svelte">Roster Management</h3>
     <div class="howto-image-slot" aria-label="Roster management buttons">
-      <img src="assets/guide/howto/roster-buttons.png" alt="Roster Management buttons: sort roster, refresh and Bible" class="howto-guide-image howto-guide-image--full" loading="lazy" />
+      <img src="assets/guide/howto/roster-buttons.png" alt="Roster Management buttons: Sort, Refresh, Manual and Bible" class="howto-guide-image howto-guide-image--full" loading="lazy" />
     </div>
     <ul>
-      <li><strong>Sort Roster</strong> lets you sort by CP, iLvl, or manually.</li>
-      <li><strong>Refresh</strong> updates roster iLvl/CP based on Bible data.</li>
-      <li>The <strong>Bible</strong> button lets you fetch your roster again when needed.</li>
+      <li><strong>Sort</strong> lets you organize your roster by CP, iLvl, or manually.</li>
+      <li>The <strong>Manual</strong> button lets you add a character manually.</li>
+      <li>The <strong>Bible</strong> button lets you fetch a character from the Bible API whenever you want.</li>
+      <li><strong>Refresh</strong> updates roster iLvl/CP using Bible data.</li>
     </ul>
 
     <div class="howto-image-slot" aria-label="Roster card actions">
       <img src="assets/guide/howto/roster-card-actions.png" alt="Character card actions: Hide in Weekly, Edit and Delete" class="howto-guide-image" loading="lazy" />
     </div>
     <ul>
-      <li><strong>Hide in Weekly</strong> makes the character invisible in Weekly Tracker.</li>
       <li><strong>Edit</strong> lets you manually edit name, class, iLvl, and Combat Power.</li>
+      <li><strong>Hide in Weekly</strong> makes the character invisible in Weekly Tracker.</li>
       <li><strong>Delete</strong> removes the character.</li>
     </ul>
   </section>

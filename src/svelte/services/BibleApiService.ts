@@ -31,6 +31,18 @@ type MathiRosterResponse = {
   }>;
 };
 
+export class BibleApiRequestError extends Error {
+  status: number;
+  body: string;
+
+  constructor(status: number, body: string) {
+    super(`HTTP ${status}: ${body}`);
+    this.name = 'BibleApiRequestError';
+    this.status = status;
+    this.body = body;
+  }
+}
+
 async function fetchJson(path: string) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
@@ -44,7 +56,7 @@ async function fetchJson(path: string) {
 
     if (!response.ok) {
       const body = await response.text();
-      throw new Error(`HTTP ${response.status}: ${body}`);
+      throw new BibleApiRequestError(response.status, body);
     }
 
     return await response.json();
@@ -58,6 +70,9 @@ export class BibleApiService {
     try {
       return await fetchJson(`/characters/by-name/${region}/${characterName}`) as MathiCharacterByNameResponse;
     } catch (error) {
+      if (error instanceof BibleApiRequestError) {
+        throw error;
+      }
       throw new Error(`Failed to fetch character: ${error}`);
     }
   }
@@ -66,6 +81,9 @@ export class BibleApiService {
     try {
       return await fetchJson(`/rosters/by-guid/${rosterGuid}`) as MathiRosterResponse;
     } catch (error) {
+      if (error instanceof BibleApiRequestError) {
+        throw error;
+      }
       throw new Error(`Failed to fetch roster: ${error}`);
     }
   }

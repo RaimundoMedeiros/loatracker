@@ -2676,20 +2676,18 @@
               {/if}
             {/each}
 
-            {#if cardVisibleCharacters.length > 0}
+            {#if cardVisibleCharacters.length > 0 && cardShowGoldColumn}
               <tr class="total-row">
                 <td class="total-label">Total Gold</td>
                 {#each cardVisibleBosses as _}
                   <td class="total-empty"></td>
                 {/each}
-                {#if cardShowGoldColumn}
-                  <td class="gold-cell">
-                    <div class="gold-display">
-                      <span class="gold-icon" aria-hidden="true"></span>
-                      <span class="gold-amount">{cardTotalGold.toLocaleString()}</span>
-                    </div>
-                  </td>
-                {/if}
+                <td class="gold-cell">
+                  <div class="gold-display">
+                    <span class="gold-icon" aria-hidden="true"></span>
+                    <span class="gold-amount">{cardTotalGold.toLocaleString()}</span>
+                  </div>
+                </td>
                 {#if cardShowGuardianColumn}
                   <td class="total-empty"></td>
                 {/if}

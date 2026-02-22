@@ -3,7 +3,7 @@
   import { onDestroy } from 'svelte';
   import { UIHelper } from '../../utils/uiHelper';
   import { TOAST_TYPES } from '../../legacy/config/constants.js';
-  import { BibleApiService } from '../../services/BibleApiService';
+  import { BibleApiRequestError, BibleApiService } from '../../services/BibleApiService';
   import { formatCombatPowerDisplay, formatItemLevelDisplay } from '../../utils/formValidator';
   import { notifyRosterChanged } from '../../stores/rosterSync';
   import { reportError } from '../../utils/errorHandler';
@@ -228,7 +228,22 @@
     mathiProgressText = 'Fetching roster from Bible API...';
 
     const mathiResult = await withAsyncError(async () => {
-      const rows = await BibleApiService.fetchFullRoster(mathiRegion, trimmedName);
+      let rows: Awaited<ReturnType<typeof BibleApiService.fetchFullRoster>>;
+      try {
+        rows = await BibleApiService.fetchFullRoster(mathiRegion, trimmedName);
+      } catch (error) {
+        const isNotFound = error instanceof BibleApiRequestError
+          ? error.status === 404
+          : String(error || '').includes('HTTP 404');
+
+        if (isNotFound) {
+          showToast('Character not found on Bible API. Check the name and region.', TOAST_TYPES.ERROR);
+          return true;
+        }
+
+        throw error;
+      }
+
       await loadPreviewCharacters(Array.isArray(rows) ? rows : [], `Preview loaded: ${rows?.length || 0} characters`, 'mathimoe');
       startMathiCooldown();
       progressText = 'Roster fetched successfully!';

@@ -4,7 +4,10 @@ dist/
 *.log
 .env
 .env.*
-!.env.example
+
+# local API tester (do not commit)
+tools/ags-api-tester.mjs
+.env.example
 
 # editor
 .vscode/
