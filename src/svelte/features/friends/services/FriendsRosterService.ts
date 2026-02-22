@@ -1,4 +1,5 @@
 import { RAID_CONFIG, WEEKLY_RESET } from '../../../legacy/config/constants.js';
+import { getHiddenRaidIdsForSettings, getVisibleRaidIndices, normalizeRaidKey } from '../../../domain/shared/raidDomain';
 
 const DEFAULT_TIMEOUT_MS = 10000;
 const DEFAULT_FRIENDS_PROXY_URL = 'https://friendsweekly.ychainstyle.workers.dev';
@@ -141,49 +142,21 @@ export class FriendsRosterService {
 
   getVisibleRaidIndices(): number[] {
     const hiddenRaidIds = this.getHiddenRaidIdSet();
-    return RAID_CONFIG
-      .map((raid: any, index: number) => (hiddenRaidIds.has(raid.id) ? -1 : index))
-      .filter((index: number) => index >= 0);
+    return getVisibleRaidIndices(RAID_CONFIG as Array<any>, hiddenRaidIds);
   }
 
   getHiddenRaidIdSet(): Set<string> {
     const hiddenRaidIds = new Set(
-      (this.weeklyTracker.getHiddenRaidIds?.() || []).map((value: string) => String(value || '').trim().toLowerCase()),
+      (this.weeklyTracker.getHiddenRaidIds?.() || [])
+        .map((value: string) => normalizeRaidKey(value, RAID_CONFIG as Array<any>, { allowUnknown: false }))
+        .filter(Boolean),
     );
-
-    const aliasToRaidId: Record<string, string> = {
-      aegir: 'aegir',
-      brel: 'brel',
-      mordum: 'mordum',
-      armoche: 'armoche',
-      kazeros: 'kazeros',
-    };
 
     const settings = this.state.get('settings') || {};
     const activeId = this.state.getActiveRosterId?.();
-    const byRoster = settings.hiddenColumnsByRoster || {};
 
-    const rawHidden = activeId && Array.isArray(byRoster[activeId])
-      ? byRoster[activeId]
-      : (Array.isArray(settings.hiddenColumns)
-        ? settings.hiddenColumns
-        : (Array.isArray(settings.hiddenBossColumns) ? settings.hiddenBossColumns : []));
-
-    rawHidden.forEach((value: unknown) => {
-      const normalized = String(value || '').trim().toLowerCase();
-      if (!normalized) return;
-
-      const directRaid = RAID_CONFIG.find((raid: any) => raid.id === normalized);
-      if (directRaid) {
-        hiddenRaidIds.add(directRaid.id);
-        return;
-      }
-
-      const aliasEntry = Object.entries(aliasToRaidId).find(([alias]) => normalized === alias || normalized.includes(alias));
-      if (aliasEntry) {
-        hiddenRaidIds.add(aliasEntry[1]);
-      }
-    });
+    const fromSettings = getHiddenRaidIdsForSettings(settings, String(activeId || ''), RAID_CONFIG as Array<any>);
+    fromSettings.forEach((raidId) => hiddenRaidIds.add(raidId));
 
     return hiddenRaidIds;
   }
@@ -266,7 +239,7 @@ export class FriendsRosterService {
       }
     }
 
-    const targetId = this.normalizeRaidKey(raidId || bossName);
+    const targetId = normalizeRaidKey(raidId || bossName, RAID_CONFIG as Array<any>, { allowUnknown: true });
     if (!targetId) {
       return null;
     }
@@ -276,7 +249,7 @@ export class FriendsRosterService {
         continue;
       }
 
-      if (this.normalizeRaidKey(key) === targetId) {
+      if (normalizeRaidKey(key, RAID_CONFIG as Array<any>, { allowUnknown: true }) === targetId) {
         return value as Record<string, any>;
       }
     }
@@ -291,58 +264,6 @@ export class FriendsRosterService {
     }
 
     return `${text.charAt(0).toUpperCase()}${text.slice(1).toLowerCase()}`;
-  }
-
-  private normalizeRaidKey(value: unknown): string {
-    const safe = String(value || '').trim().toLowerCase();
-    if (!safe) {
-      return '';
-    }
-
-    const cleaned = safe
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]+/g, '');
-
-    if (!cleaned) {
-      return '';
-    }
-
-    const aliases: Record<string, string> = {
-      aegir: 'aegir',
-      act1aegir: 'aegir',
-      brel: 'brel',
-      brelshaza: 'brel',
-      act2brel: 'brel',
-      mordum: 'mordum',
-      act3mordum: 'mordum',
-      armoche: 'armoche',
-      act4armoche: 'armoche',
-      kazeros: 'kazeros',
-      finalactkazeros: 'kazeros',
-    };
-
-    if (aliases[cleaned]) {
-      return aliases[cleaned];
-    }
-
-    for (const raid of RAID_CONFIG as Array<any>) {
-      const currentRaidId = String(raid?.id || '').toLowerCase();
-      if (!currentRaidId) continue;
-      if (cleaned === currentRaidId) {
-        return currentRaidId;
-      }
-
-      const normalizedLabel = String(raid?.label || '')
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '');
-
-      if (normalizedLabel && cleaned === normalizedLabel) {
-        return currentRaidId;
-      }
-    }
-
-    return cleaned;
   }
 
   async hashPin(pin: string): Promise<string> {

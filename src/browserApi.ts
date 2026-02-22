@@ -1,4 +1,4 @@
-import { dbBridge } from './dbBridge.ts';
+import { dbBridge } from './dbBridge';
 import type { AppApi, CharacterImportRow } from './types/app-api';
 
 type PermissionResult = 'granted' | 'denied' | 'prompt' | 'unknown';

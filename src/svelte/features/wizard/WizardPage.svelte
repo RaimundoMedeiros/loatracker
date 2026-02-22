@@ -3,7 +3,7 @@
   import { onDestroy } from 'svelte';
   import { UIHelper } from '../../utils/uiHelper';
   import { TOAST_TYPES } from '../../legacy/config/constants.js';
-  import { ApiService } from '../../legacy/services/ApiService.js';
+  import { BibleApiService } from '../../services/BibleApiService';
   import { formatCombatPowerDisplay, formatItemLevelDisplay } from '../../utils/formValidator';
   import { notifyRosterChanged } from '../../stores/rosterSync';
   import { reportError } from '../../utils/errorHandler';
@@ -15,7 +15,7 @@
     name: string;
     class: string;
     ilvl: number;
-    combatPower: number;
+    combatPower: number | null;
   };
 
   type PreviewCharacter = Character & {
@@ -168,7 +168,7 @@
       name: String(character.name || '').trim(),
       class: normalizeClass(character.class),
       ilvl: normalizeIlvl(character.ilvl),
-      combatPower: Number(character.combatPower || 0),
+      combatPower: normalizeCombatPower(character.combatPower),
       selected: false,
     };
   }
@@ -226,7 +226,7 @@
     mathiProgressText = 'Fetching roster from Bible API...';
 
     const mathiResult = await withAsyncError(async () => {
-      const rows = await ApiService.fetchFullRoster(mathiRegion, trimmedName);
+      const rows = await BibleApiService.fetchFullRoster(mathiRegion, trimmedName);
       await loadPreviewCharacters(Array.isArray(rows) ? rows : [], `Preview loaded: ${rows?.length || 0} characters`, 'mathimoe');
       startMathiCooldown();
       progressText = 'Roster fetched successfully!';

@@ -2,7 +2,7 @@
   import { onMount, onDestroy, tick } from 'svelte';
   import { UIHelper } from '../../utils/uiHelper';
   import { notifyRosterChanged, rosterChangeVersion, visibleRostersChangeVersion } from '../../stores/rosterSync';
-  import type { AppApi, SettingsPayload } from '../../../types/app-api';
+  import type { AppApi, SettingsPayload, RosterPayload } from '../../../types/app-api';
   import {
     BOSSES,
     BOSS_MAP,
@@ -11,9 +11,14 @@
     DAILY_RESET,
     TOAST_TYPES,
   } from '../../legacy/config/constants.js';
+  import { normalizeRaidKey } from '../../domain/shared/raidDomain';
+  import { isCharacterEligibleForRaid } from '../../domain/shared/raidDomain';
   import { formatItemLevelDisplay } from '../../utils/formValidator';
   import { reportError } from '../../utils/errorHandler';
   import { ERROR_CODES } from '../../utils/errorCodes';
+  import { FriendsRosterService } from '../friends/services/FriendsRosterService';
+  import { normalizeFriendsConfig } from '../friends/config';
+  import type { FriendsRosterConfig } from '../friends/types';
 
   type Difficulty = 'Solo' | 'Normal' | 'Hard';
 
@@ -71,6 +76,7 @@
   const WEEKLY_DEBUG_ENABLED = false;
   const AUTO_RAID_FOCUS_DEDUP_MS = 1200;
   const API_READY_TIMEOUT_MS = 6000;
+  const MIN_FRIENDS_PIN_LENGTH = 4;
 
   const DEFAULT_RAID_CELL: RaidCell = {
     cleared: false,
@@ -89,15 +95,15 @@
   let timerInterval: ReturnType<typeof setInterval> | null = null;
   let dailyData: DailyData | null = null;
   let visibleCharacters: string[] = [];
-  let goldByCharacter: Record<string, number> = {};
-  let totalGold = 0;
   let unsubscribeRosterChanges: (() => void) | null = null;
   let unsubscribeVisibleRosterChanges: (() => void) | null = null;
   let lastDebugSignature = '';
   let hiddenColumns: string[] = [];
   let columnSettingsOpen = false;
   let draftVisibleColumns: Record<string, boolean> = {};
-  let goldPopoverCharacter: string | null = null;
+  let columnSettingsRosterId = '';
+  let columnSettingsRosterName = '';
+  let goldPopoverTarget: { rosterId: string; characterName: string } | null = null;
   let goldBonusInput = '';
   let goldBonusInputRef: HTMLInputElement | null = null;
   let draggingCharacterName: string | null = null;
@@ -117,6 +123,8 @@
     timestamp: new Date().toISOString(),
   };
   let weeklyConfirmAction: WeeklyConfirmAction = null;
+  let weeklyConfirmRosterId = '';
+  let weeklyConfirmRosterName = '';
   let weeklyConfirmCancelButton: HTMLButtonElement | null = null;
   let weeklyConfirmConfirmButton: HTMLButtonElement | null = null;
   let weeklyConfirmReturnFocusEl: HTMLElement | null = null;
@@ -124,17 +132,25 @@
   $: weeklyConfirmOpen = weeklyConfirmAction !== null;
   $: weeklyConfirmTitle = weeklyConfirmAction === 'reset-weekly' ? 'Reset weekly data' : '';
   $: weeklyConfirmMessage = weeklyConfirmAction === 'reset-weekly'
-    ? 'Reset weekly and daily progress for all visible characters in the active roster?'
+    ? `Reset weekly and daily progress for all visible characters in ${weeklyConfirmRosterName || 'this roster'}?`
     : '';
-  async function openWeeklyConfirm(action: Exclude<WeeklyConfirmAction, null>) {
+  async function openWeeklyConfirm(
+    action: Exclude<WeeklyConfirmAction, null>,
+    rosterId = activeRosterId,
+    rosterName = ''
+  ) {
     weeklyConfirmReturnFocusEl = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     weeklyConfirmAction = action;
+    weeklyConfirmRosterId = String(rosterId || '').trim();
+    weeklyConfirmRosterName = String(rosterName || '').trim() || rosterNamesById[weeklyConfirmRosterId] || 'this roster';
     await tick();
     weeklyConfirmConfirmButton?.focus();
   }
 
   function closeWeeklyConfirm() {
     weeklyConfirmAction = null;
+    weeklyConfirmRosterId = '';
+    weeklyConfirmRosterName = '';
     const returnFocusEl = weeklyConfirmReturnFocusEl;
     weeklyConfirmReturnFocusEl = null;
     if (returnFocusEl && typeof returnFocusEl.focus === 'function') {
@@ -178,7 +194,7 @@
     if (weeklyConfirmAction !== 'reset-weekly') {
       return;
     }
-    await resetWeekly();
+    await resetWeeklyForRoster(weeklyConfirmRosterId || activeRosterId);
     closeWeeklyConfirm();
   }
 
@@ -197,16 +213,6 @@
 
   $: visibleCharacters = getVisibleCharacters(roster, order);
   $: hiddenSet = new Set(hiddenColumns);
-  $: visibleBosses = BOSSES.filter((boss) => {
-    const raidId = String(getRaidConfigByBoss(boss)?.id || boss).toLowerCase();
-    return !hiddenSet.has(raidId);
-  });
-  $: showGoldColumn = !hiddenSet.has('gold');
-  $: showGuardianColumn = !hiddenSet.has('guardianRaid');
-  $: showChaosColumn = !hiddenSet.has('chaosDungeon');
-  $: totalColumnsCount = 1 + visibleBosses.length + (showGoldColumn ? 1 : 0) + (showGuardianColumn ? 1 : 0) + (showChaosColumn ? 1 : 0);
-  $: goldByCharacter = computeGoldByCharacter(visibleCharacters, characterData, visibleBosses);
-  $: totalGold = Object.values(goldByCharacter).reduce((sum, value) => sum + value, 0);
   $: weeklyCards = buildWeeklyCardsFromState(
     activeRosterId,
     visibleRosterIds,
@@ -386,17 +392,17 @@
   });
 
   function handleGlobalClick(event: MouseEvent) {
-    if (!goldPopoverCharacter) return;
+    if (!goldPopoverTarget) return;
     const target = event.target as HTMLElement | null;
     if (!target) return;
     if (target.closest('.gold-cell')) return;
-    goldPopoverCharacter = null;
+    goldPopoverTarget = null;
   }
 
   function handleGlobalKeydown(event: KeyboardEvent) {
     if (event.key === 'Escape') {
-      goldPopoverCharacter = null;
-      columnSettingsOpen = false;
+      goldPopoverTarget = null;
+      closeColumnsConfig();
     }
   }
 
@@ -496,9 +502,164 @@
     isAutoRaidFocusUpdateInFlight = true;
 
     try {
-      await loadFromDatabase({ silent: true, overlay: false });
+      const targetRosterIds = Array.from(new Set([
+        String(activeRosterId || '').trim(),
+        ...(visibleRosterIds || []).map((id) => String(id || '').trim()),
+      ].filter((id) => Boolean(id))));
+
+      debugWeekly('auto-raid-focus:update-targets', {
+        activeRosterId,
+        visibleRosterIds,
+        targetRosterIds,
+      });
+
+      if (targetRosterIds.length === 0) {
+        return;
+      }
+
+      for (const rosterId of targetRosterIds) {
+        try {
+          const updatedCells = await loadFromDatabase({
+            silent: true,
+            overlay: false,
+            rosterId,
+          });
+          debugWeekly('auto-raid-focus:update-roster-success', {
+            rosterId,
+            updatedCells,
+          });
+        } catch (error) {
+          debugWeekly('auto-raid-focus:update-roster-failed', {
+            rosterId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+
+      debugWeekly('auto-raid-focus:update-finished', {
+        targetRosterIds,
+      });
     } finally {
       isAutoRaidFocusUpdateInFlight = false;
+    }
+  }
+
+  function getFriendsConfigFromSettings(): FriendsRosterConfig {
+    const settingsNow = (settings || {}) as Record<string, unknown>;
+    return normalizeFriendsConfig(settingsNow.friendsRoster);
+  }
+
+  function resolveSelfPinForRoster(config: FriendsRosterConfig, rosterId: string) {
+    const safeRosterId = String(rosterId || '').trim();
+    if (!safeRosterId) return '';
+
+    const ownFriendEntry = (config.friends || []).find((friend) => String(friend?.rosterCode || '').trim() === safeRosterId);
+    if (ownFriendEntry?.pin) {
+      return String(ownFriendEntry.pin || '').trim();
+    }
+
+    const byRoster = config.selfPinsByRoster || {};
+    return String(byRoster[safeRosterId] || '').trim();
+  }
+
+  function getHiddenRaidIdsForCurrentRoster() {
+    return (hiddenColumns || [])
+      .map((value) => normalizeRaidBossId(String(value || '')))
+      .filter((value): value is string => Boolean(value));
+  }
+
+  async function tryAutoUploadOnFocusChange() {
+    try {
+      const friendsConfig = getFriendsConfigFromSettings();
+      const activeRosterCode = String(activeRosterId || '').trim();
+      if (!activeRosterCode) {
+        return;
+      }
+
+      const pin = resolveSelfPinForRoster(friendsConfig, activeRosterCode);
+      if (pin.length < MIN_FRIENDS_PIN_LENGTH) {
+        debugWeekly('friends:auto-upload-focus-skip-pin-missing', {
+          activeRosterCode,
+          pinLength: pin.length,
+        });
+        return;
+      }
+
+      const rosterSummaries = Object.entries(rosterNamesById || {})
+        .map(([id, name]) => ({ id, name: String(name || '').trim() || 'Main Roster' }))
+        .filter((entry) => Boolean(entry.id));
+
+      const friendsService = new FriendsRosterService(
+        {
+          characterData,
+          getBosses: () => [...(BOSSES as string[])],
+          getHiddenRaidIds: () => getHiddenRaidIdsForCurrentRoster(),
+          isCharacterEligible: (ilvl: number, bossId: string) => isCharacterEligibleForRaid(ilvl, bossId, RAID_CONFIG as Array<any>),
+        },
+        {
+          roster,
+          rosterOrder: order,
+        },
+        {
+          get: (key: string) => (key === 'settings' ? settings : undefined),
+          getActiveRosterId: () => activeRosterCode,
+          multiRosterManager: {
+            getRosters: () => rosterSummaries,
+          },
+        }
+      );
+
+      if (!friendsService.isConfigured()) {
+        debugWeekly('friends:auto-upload-focus-skip-not-configured');
+        return;
+      }
+
+      const snapshot = friendsService.buildSelfSnapshot();
+      const pinHash = await friendsService.hashPin(pin);
+      const fingerprint = friendsService.buildSyncFingerprint(snapshot, pinHash);
+      const lastFingerprint = friendsConfig.lastUploadFingerprintByRoster?.[activeRosterCode];
+
+      if (lastFingerprint && lastFingerprint === fingerprint) {
+        debugWeekly('friends:auto-upload-focus-skip-no-changes', { activeRosterCode });
+        return;
+      }
+
+      const result = await friendsService.uploadSelfWeekly(pin);
+
+      const nextFriendsConfig: FriendsRosterConfig = {
+        ...friendsConfig,
+        lastUploadFingerprintByRoster: {
+          ...(friendsConfig.lastUploadFingerprintByRoster || {}),
+          [activeRosterCode]: result.fingerprint,
+        },
+      };
+
+      const nextSettings: SettingsPayload = {
+        ...((settings || {}) as SettingsPayload),
+        friendsRoster: nextFriendsConfig,
+      };
+
+      await api.saveSettings?.(nextSettings);
+      settings = nextSettings;
+
+      debugWeekly('friends:auto-upload-focus-success', {
+        activeRosterCode,
+        uploaded: result.uploaded,
+      });
+    } catch (error: any) {
+      const reported = await reportError(error, {
+        code: ERROR_CODES.FRIENDS.AUTO_UPLOAD_FAILED,
+        severity: 'warning',
+        context: {
+          phase: 'tryAutoUploadAfterRaidFocusUpdate',
+          action: 'auto-upload-after-raid-focus-update',
+          rosterId: activeRosterId,
+        },
+        showToast: false,
+      });
+      debugWeekly('friends:auto-upload-focus-failed', {
+        message: reported.message,
+      });
     }
   }
 
@@ -510,6 +671,7 @@
     await refreshSettingsSnapshot();
 
     await triggerAutoRaidFocusUpdate();
+    await tryAutoUploadOnFocusChange();
   }
 
   function sanitizeHiddenColumns(values: unknown): string[] {
@@ -550,12 +712,11 @@
   ) {
     const settingsNow: Partial<SettingsPayload> = safeSettings ?? {};
     const byRoster = (settingsNow.visibleWeeklyRostersByRoster || {}) as Record<string, string[]>;
-    const legacy = Array.isArray(settingsNow.visibleWeeklyRosters) ? settingsNow.visibleWeeklyRosters : [];
     const hasEntry = Boolean(activeId) && Object.prototype.hasOwnProperty.call(byRoster, activeId);
 
     const selected = hasEntry
       ? (Array.isArray(byRoster[activeId]) ? byRoster[activeId] : [])
-      : (legacy.length > 0 ? legacy : rosterIds);
+      : [];
 
     const selectedSet = new Set((selected || []).map((id: unknown) => String(id)).filter((id: string) => rosterIds.includes(id)));
     if (activeId) {
@@ -579,12 +740,15 @@
     const cards: WeeklyCardSnapshot[] = [];
 
     const normalizedActiveRosterId = String(activeRosterIdState || '').trim();
-    const normalizedVisibleRosterIds = Array.from(
+    let normalizedVisibleRosterIds = Array.from(
       new Set((visibleRosterIdsState || []).map((id) => String(id || '').trim()).filter((id) => Boolean(id)))
     );
 
-    if (normalizedActiveRosterId && !normalizedVisibleRosterIds.includes(normalizedActiveRosterId)) {
-      normalizedVisibleRosterIds.unshift(normalizedActiveRosterId);
+    if (normalizedActiveRosterId) {
+      normalizedVisibleRosterIds = [
+        normalizedActiveRosterId,
+        ...normalizedVisibleRosterIds.filter((id) => id !== normalizedActiveRosterId),
+      ];
     }
 
     normalizedVisibleRosterIds.forEach((rosterId) => {
@@ -780,23 +944,7 @@
   }
 
   function normalizeRaidBossId(boss: string) {
-    const safeBoss = String(boss || '').trim().toLowerCase();
-    if (!safeBoss) return '';
-
-    const directById = RAID_CONFIG.find((entry: any) => String(entry.id || '').toLowerCase() === safeBoss);
-    if (directById) return String((directById as any).id || '');
-
-    const directByLabel = RAID_CONFIG.find((entry: any) => String(entry.label || '').trim().toLowerCase() === safeBoss);
-    if (directByLabel) return String((directByLabel as any).id || '');
-
-    const softByLabel = RAID_CONFIG.find((entry: any) => {
-      const label = String(entry.label || '').toLowerCase();
-      const id = String(entry.id || '').toLowerCase();
-      return label.includes(safeBoss) || safeBoss.includes(id);
-    });
-    if (softByLabel) return String((softByLabel as any).id || '');
-
-    return '';
+    return normalizeRaidKey(boss, RAID_CONFIG as Array<any>, { allowUnknown: false });
   }
 
   function getBossLookupKeys(boss: string) {
@@ -838,12 +986,6 @@
     };
   }
 
-  function ensureCharacterData(characterName: string) {
-    if (!characterData[characterName]) {
-      characterData[characterName] = {} as CharacterBossData;
-    }
-  }
-
   function getRaidConfigByBoss(boss: string) {
     const normalizedId = normalizeRaidBossId(boss);
     if (!normalizedId) return undefined;
@@ -853,13 +995,6 @@
   function getRaidLabel(boss: string) {
     const raid = getRaidConfigByBoss(boss) as { label?: string } | undefined;
     return String(raid?.label || boss);
-  }
-
-  function isEligible(characterName: string, boss: string) {
-    const character = getCharacter(characterName);
-    const raid = getRaidConfigByBoss(boss);
-    if (!character || !raid) return false;
-    return character.ilvl >= Number(raid.nm || 0);
   }
 
   function isEligibleForRoster(
@@ -877,29 +1012,6 @@
     const raid = getRaidConfigByBoss(boss) as { id?: string } | undefined;
     const raidId = String(raid?.id || normalizeRaidBossId(boss) || '').toLowerCase();
     return raidId === 'armoche' || raidId === 'kazeros';
-  }
-
-  function getAllowedDifficulties(characterName: string, boss: string): Difficulty[] {
-    const character = getCharacter(characterName);
-    const raid = getRaidConfigByBoss(boss);
-    const soloDisabled = disallowSoloForBoss(boss);
-
-    if (!character || !raid) {
-      return soloDisabled ? ['Normal'] : ['Solo', 'Normal'];
-    }
-
-    if (character.ilvl >= Number(raid.hm || 9999)) {
-      return soloDisabled ? ['Normal', 'Hard'] : ['Solo', 'Normal', 'Hard'];
-    }
-
-    return soloDisabled ? ['Normal'] : ['Solo', 'Normal'];
-  }
-
-  function getNextDifficulty(characterName: string, boss: string, current: Difficulty): Difficulty {
-    const allowed = getAllowedDifficulties(characterName, boss);
-    const index = allowed.indexOf(current);
-    if (index < 0) return allowed[0];
-    return allowed[(index + 1) % allowed.length];
   }
 
   async function persistCharacterData() {
@@ -1142,6 +1254,49 @@
     } satisfies DailyData;
   }
 
+  function buildDefaultDailyDataForRosterFrom(
+    rosterState: Record<string, unknown>,
+    orderState: string[]
+  ) {
+    const names = getRosterCharacterNames(rosterState, orderState);
+    return {
+      date: getCurrentDailyStartIso(),
+      characters: Object.fromEntries(
+        names.map((name) => [
+          name,
+          {
+            guardianRaid: defaultActivity(),
+            chaosDungeon: defaultActivity(),
+          },
+        ])
+      ),
+      roster: {
+        fieldBoss: defaultActivity(),
+        chaosGate: defaultActivity(),
+      },
+    } satisfies DailyData;
+  }
+
+  function getAllowedDifficultiesForRoster(
+    rosterState: Record<string, RosterCharacter | unknown>,
+    characterName: string,
+    boss: string
+  ): Difficulty[] {
+    const character = getCharacterFromRoster(rosterState, characterName);
+    const raid = getRaidConfigByBoss(boss);
+    const soloDisabled = disallowSoloForBoss(boss);
+
+    if (!character || !raid) {
+      return soloDisabled ? ['Normal'] : ['Solo', 'Normal'];
+    }
+
+    if (character.ilvl >= Number((raid as any).hm || 9999)) {
+      return soloDisabled ? ['Normal', 'Hard'] : ['Solo', 'Normal', 'Hard'];
+    }
+
+    return soloDisabled ? ['Normal'] : ['Solo', 'Normal'];
+  }
+
   async function ensureDatabaseReady(silent = false) {
     let hasDb = await api.checkDatabaseExists?.();
     if (hasDb) {
@@ -1368,131 +1523,288 @@
     }
   }
 
-  async function toggleRaid(characterName: string, boss: string, checked: boolean) {
-    if (loading || !activeRosterId) {
+  async function getRosterStateForTarget(rosterId: string) {
+    const targetRosterId = String(rosterId || '').trim();
+    const isActiveTarget = targetRosterId === activeRosterId;
+
+    if (isActiveTarget) {
+      return {
+        isActiveTarget,
+        rosterState: roster,
+        orderState: order,
+      };
+    }
+
+    const cached = rosterCardsCache[targetRosterId];
+    if (cached) {
+      return {
+        isActiveTarget,
+        rosterState: cached.roster,
+        orderState: cached.order,
+      };
+    }
+
+    const loaded = (await api.loadRoster?.(targetRosterId)) as RosterPayload | null;
+    const rosterState = (loaded?.roster || {}) as Record<string, RosterCharacter | unknown>;
+    const orderState = Array.isArray(loaded?.order)
+      ? loaded.order.map((name: unknown) => String(name || '').trim()).filter((name: string) => Boolean(name))
+      : Object.keys(rosterState).filter((name) => name !== 'dailyData');
+
+    return {
+      isActiveTarget,
+      rosterState,
+      orderState,
+    };
+  }
+
+  async function getCharacterDataForTarget(rosterId: string) {
+    const targetRosterId = String(rosterId || '').trim();
+    if (targetRosterId === activeRosterId) {
+      return { ...(characterData || {}) } as CharacterDataMap;
+    }
+
+    const cached = rosterCardsCache[targetRosterId];
+    if (cached) {
+      return { ...(cached.characterData || {}) } as CharacterDataMap;
+    }
+
+    const loaded = (await api.loadCharacterData?.(targetRosterId)) as CharacterDataMap | null;
+    return { ...(loaded || {}) } as CharacterDataMap;
+  }
+
+  async function persistCharacterDataForTarget(rosterId: string, nextCharacterData: CharacterDataMap) {
+    const targetRosterId = String(rosterId || '').trim();
+    if (!targetRosterId) return;
+
+    await api.saveCharacterData?.(targetRosterId, nextCharacterData);
+
+    if (targetRosterId === activeRosterId) {
+      characterData = nextCharacterData;
+    }
+
+    const cached = rosterCardsCache[targetRosterId];
+    if (cached) {
+      rosterCardsCache[targetRosterId] = {
+        ...cached,
+        characterData: nextCharacterData,
+      };
+      rosterCardsCache = { ...rosterCardsCache };
+    }
+  }
+
+  async function getDailyStateForTarget(rosterId: string) {
+    const targetRosterId = String(rosterId || '').trim();
+    const { isActiveTarget, rosterState, orderState } = await getRosterStateForTarget(targetRosterId);
+
+    const sourceDaily = isActiveTarget
+      ? dailyData
+      : ((rosterState.dailyData as DailyData | undefined) || rosterCardsCache[targetRosterId]?.dailyData || null);
+
+    const dailyState: DailyData = sourceDaily || buildDefaultDailyDataForRosterFrom(
+      rosterState as Record<string, unknown>,
+      orderState
+    );
+
+    return {
+      isActiveTarget,
+      rosterState,
+      orderState,
+      dailyState,
+    };
+  }
+
+  async function persistDailyStateForTarget(
+    rosterId: string,
+    rosterState: Record<string, RosterCharacter | unknown>,
+    orderState: string[],
+    dailyState: DailyData
+  ) {
+    const targetRosterId = String(rosterId || '').trim();
+    if (!targetRosterId) return;
+
+    const nextRosterState = {
+      ...rosterState,
+      dailyData: dailyState,
+    };
+
+    await api.saveRoster?.(targetRosterId, {
+      roster: nextRosterState,
+      order: orderState,
+    });
+
+    if (targetRosterId === activeRosterId) {
+      roster = nextRosterState;
+      dailyData = dailyState;
+    }
+
+    const cached = rosterCardsCache[targetRosterId];
+    if (cached) {
+      rosterCardsCache[targetRosterId] = {
+        ...cached,
+        roster: nextRosterState,
+        order: orderState,
+        dailyData: dailyState,
+      };
+      rosterCardsCache = { ...rosterCardsCache };
+    }
+  }
+
+  async function toggleRaid(rosterId: string, characterName: string, boss: string, checked: boolean) {
+    const targetRosterId = String(rosterId || '').trim();
+    if (loading || !targetRosterId) {
       showToast('Weekly action blocked: page is loading or no active roster.', TOAST_TYPES.WARNING);
       return;
     }
-    if (!isEligible(characterName, boss)) {
+
+    const { rosterState } = await getRosterStateForTarget(targetRosterId);
+    if (!isEligibleForRoster(rosterState, characterName, boss)) {
       showToast(`Character not eligible for ${getRaidLabel(boss)}.`, TOAST_TYPES.WARNING);
       return;
     }
 
-    ensureCharacterData(characterName);
-    const current = getRaidCell(characterData, characterName, boss);
-    const allowedDifficulties = getAllowedDifficulties(characterName, boss);
+    const nextCharacterData = await getCharacterDataForTarget(targetRosterId);
+    if (!nextCharacterData[characterName]) {
+      nextCharacterData[characterName] = {} as CharacterBossData;
+    }
+
+    const current = getRaidCell(nextCharacterData, characterName, boss);
+    const allowedDifficulties = getAllowedDifficultiesForRoster(rosterState, characterName, boss);
     const nextDifficulty = checked
       ? (allowedDifficulties.includes(current.difficulty) ? current.difficulty : allowedDifficulties[0])
       : current.difficulty;
 
-    characterData[characterName][boss] = {
+    nextCharacterData[characterName][boss] = {
       ...current,
       cleared: checked,
       difficulty: nextDifficulty,
       timestamp: checked ? new Date().toISOString() : null,
     };
-    characterData = {
-      ...characterData,
-      [characterName]: { ...characterData[characterName] },
-    };
-    await persistCharacterData();
+
+    nextCharacterData[characterName] = { ...nextCharacterData[characterName] };
+    await persistCharacterDataForTarget(targetRosterId, nextCharacterData);
   }
 
-  async function cycleDifficulty(characterName: string, boss: string) {
-    if (loading || !activeRosterId) {
+  async function cycleDifficulty(rosterId: string, characterName: string, boss: string) {
+    const targetRosterId = String(rosterId || '').trim();
+    if (loading || !targetRosterId) {
       showToast('Difficulty change blocked: page is loading or no active roster.', TOAST_TYPES.WARNING);
       return;
     }
-    if (!isEligible(characterName, boss)) {
+
+    const { rosterState } = await getRosterStateForTarget(targetRosterId);
+    if (!isEligibleForRoster(rosterState, characterName, boss)) {
       showToast(`Character not eligible for ${getRaidLabel(boss)}.`, TOAST_TYPES.WARNING);
       return;
     }
 
-    ensureCharacterData(characterName);
-    const current = getRaidCell(characterData, characterName, boss);
+    const nextCharacterData = await getCharacterDataForTarget(targetRosterId);
+    if (!nextCharacterData[characterName]) {
+      nextCharacterData[characterName] = {} as CharacterBossData;
+    }
+
+    const current = getRaidCell(nextCharacterData, characterName, boss);
     if (!current.cleared) return;
-    characterData[characterName][boss] = {
+
+    const allowedDifficulties = getAllowedDifficultiesForRoster(rosterState, characterName, boss);
+    const currentIndex = allowedDifficulties.indexOf(current.difficulty);
+    const nextDifficulty = currentIndex < 0
+      ? allowedDifficulties[0]
+      : allowedDifficulties[(currentIndex + 1) % allowedDifficulties.length];
+
+    nextCharacterData[characterName][boss] = {
       ...current,
-      difficulty: getNextDifficulty(characterName, boss, current.difficulty),
+      difficulty: nextDifficulty,
     };
-    characterData = {
-      ...characterData,
-      [characterName]: { ...characterData[characterName] },
-    };
-    await persistCharacterData();
+
+    nextCharacterData[characterName] = { ...nextCharacterData[characterName] };
+    await persistCharacterDataForTarget(targetRosterId, nextCharacterData);
   }
 
-  async function toggleChest(characterName: string, boss: string) {
-    if (loading || !activeRosterId) {
+  async function toggleChest(rosterId: string, characterName: string, boss: string) {
+    const targetRosterId = String(rosterId || '').trim();
+    if (loading || !targetRosterId) {
       showToast('Chest toggle blocked: page is loading or no active roster.', TOAST_TYPES.WARNING);
       return;
     }
-    if (!isEligible(characterName, boss)) {
+
+    const { rosterState } = await getRosterStateForTarget(targetRosterId);
+    if (!isEligibleForRoster(rosterState, characterName, boss)) {
       showToast(`Character not eligible for ${getRaidLabel(boss)}.`, TOAST_TYPES.WARNING);
       return;
     }
 
-    ensureCharacterData(characterName);
-    const current = getRaidCell(characterData, characterName, boss);
-    characterData[characterName][boss] = {
+    const nextCharacterData = await getCharacterDataForTarget(targetRosterId);
+    if (!nextCharacterData[characterName]) {
+      nextCharacterData[characterName] = {} as CharacterBossData;
+    }
+
+    const current = getRaidCell(nextCharacterData, characterName, boss);
+    nextCharacterData[characterName][boss] = {
       ...current,
       chestOpened: !current.chestOpened,
     };
-    characterData = {
-      ...characterData,
-      [characterName]: { ...characterData[characterName] },
-    };
-    await persistCharacterData();
+
+    nextCharacterData[characterName] = { ...nextCharacterData[characterName] };
+    await persistCharacterDataForTarget(targetRosterId, nextCharacterData);
   }
 
-  async function toggleHidden(characterName: string, boss: string) {
-    if (loading || !activeRosterId) {
+  async function toggleHidden(rosterId: string, characterName: string, boss: string) {
+    const targetRosterId = String(rosterId || '').trim();
+    if (loading || !targetRosterId) {
       showToast('Hide toggle blocked: page is loading or no active roster.', TOAST_TYPES.WARNING);
       return;
     }
-    if (!isEligible(characterName, boss)) {
+
+    const { rosterState } = await getRosterStateForTarget(targetRosterId);
+    if (!isEligibleForRoster(rosterState, characterName, boss)) {
       showToast(`Character not eligible for ${getRaidLabel(boss)}.`, TOAST_TYPES.WARNING);
       return;
     }
 
-    ensureCharacterData(characterName);
-    const current = getRaidCell(characterData, characterName, boss);
-    characterData[characterName][boss] = {
+    const nextCharacterData = await getCharacterDataForTarget(targetRosterId);
+    if (!nextCharacterData[characterName]) {
+      nextCharacterData[characterName] = {} as CharacterBossData;
+    }
+
+    const current = getRaidCell(nextCharacterData, characterName, boss);
+    nextCharacterData[characterName][boss] = {
       ...current,
       hidden: !current.hidden,
     };
-    characterData = {
-      ...characterData,
-      [characterName]: { ...characterData[characterName] },
-    };
-    await persistCharacterData();
+
+    nextCharacterData[characterName] = { ...nextCharacterData[characterName] };
+    await persistCharacterDataForTarget(targetRosterId, nextCharacterData);
   }
 
-  async function openGoldBonus(characterName: string) {
-    goldPopoverCharacter = characterName;
-    const currentExtra = Number((characterData?.[characterName] as CharacterBossData)?._extraGold || 0);
+  async function openGoldBonus(rosterId: string, characterName: string) {
+    const targetRosterId = String(rosterId || '').trim();
+    if (!targetRosterId) return;
+
+    const targetCharacterData = await getCharacterDataForTarget(targetRosterId);
+    goldPopoverTarget = { rosterId: targetRosterId, characterName };
+    const currentExtra = Number((targetCharacterData?.[characterName] as CharacterBossData)?._extraGold || 0);
     goldBonusInput = String(Math.max(0, Math.floor(currentExtra)));
     await tick();
     goldBonusInputRef?.focus();
     goldBonusInputRef?.select();
   }
 
-  async function applyGoldBonus(characterName: string) {
-    if (loading || !activeRosterId) return;
+  async function applyGoldBonus(rosterId: string, characterName: string) {
+    const targetRosterId = String(rosterId || '').trim();
+    if (loading || !targetRosterId) return;
+
     const parsed = Number(String(goldBonusInput || '0').trim().replace(',', '.'));
     const safeValue = Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : 0;
 
-    if (!characterData[characterName]) {
-      characterData[characterName] = {} as CharacterBossData;
+    const nextCharacterData = await getCharacterDataForTarget(targetRosterId);
+    if (!nextCharacterData[characterName]) {
+      nextCharacterData[characterName] = {} as CharacterBossData;
     }
 
-    (characterData[characterName] as CharacterBossData)._extraGold = safeValue;
-    characterData = {
-      ...characterData,
-      [characterName]: { ...characterData[characterName] },
-    };
-    await persistCharacterData();
-    goldPopoverCharacter = null;
+    (nextCharacterData[characterName] as CharacterBossData)._extraGold = safeValue;
+    nextCharacterData[characterName] = { ...nextCharacterData[characterName] };
+    await persistCharacterDataForTarget(targetRosterId, nextCharacterData);
+    goldPopoverTarget = null;
   }
 
   function startCharacterDrag(event: DragEvent, characterName: string) {
@@ -1559,15 +1871,21 @@
     endCharacterDrag();
   }
 
-  async function toggleRosterDaily(key: 'fieldBoss' | 'chaosGate') {
-    if (loading || !activeRosterId) return;
-    if (!dailyData) return;
+  async function toggleRosterDaily(rosterId: string, key: 'fieldBoss' | 'chaosGate') {
+    const targetRosterId = String(rosterId || '').trim();
+    if (loading || !targetRosterId) return;
 
-    const current = dailyData.roster?.[key] || defaultActivity();
+    const {
+      rosterState,
+      orderState,
+      dailyState,
+    } = await getDailyStateForTarget(targetRosterId);
+
+    const current = dailyState.roster?.[key] || defaultActivity();
     const nextCompleted = !current.completed;
 
-    dailyData.roster = {
-      ...(dailyData.roster || {
+    dailyState.roster = {
+      ...(dailyState.roster || {
         fieldBoss: defaultActivity(),
         chaosGate: defaultActivity(),
       }),
@@ -1578,21 +1896,26 @@
       }),
     };
 
-    roster = { ...roster, dailyData };
-    await persistRoster();
+    await persistDailyStateForTarget(targetRosterId, rosterState, orderState, dailyState);
   }
 
-  function openColumnsConfig() {
+  function openColumnsConfig(rosterId = activeRosterId, rosterName = '', sourceHiddenColumns = hiddenColumns) {
     if (loading) return;
-    const hidden = new Set(hiddenColumns);
+    const targetRosterId = String(rosterId || '').trim();
+    if (!targetRosterId) return;
+    const hidden = new Set(sourceHiddenColumns || []);
     draftVisibleColumns = Object.fromEntries(
       columnEntries.map((entry) => [entry.id, !hidden.has(entry.id)])
     );
+    columnSettingsRosterId = targetRosterId;
+    columnSettingsRosterName = String(rosterName || '').trim() || rosterNamesById[targetRosterId] || 'this roster';
     columnSettingsOpen = true;
   }
 
   function closeColumnsConfig() {
     columnSettingsOpen = false;
+    columnSettingsRosterId = '';
+    columnSettingsRosterName = '';
   }
 
   function toggleDraftColumn(columnId: string, checked: boolean) {
@@ -1603,7 +1926,8 @@
   }
 
   async function saveColumnsConfig() {
-    if (loading || !activeRosterId) return;
+    const targetRosterId = String(columnSettingsRosterId || activeRosterId || '').trim();
+    if (loading || !targetRosterId) return;
     const nextHidden = columnEntries
       .filter((entry) => !Boolean(draftVisibleColumns[entry.id]))
       .map((entry) => entry.id);
@@ -1620,14 +1944,29 @@
       hiddenBossColumns: legacyHidden,
       hiddenColumnsByRoster: {
         ...byRoster,
-        [activeRosterId]: nextHidden,
+        [targetRosterId]: nextHidden,
       },
     };
 
     await api.saveSettings?.(nextSettings);
-    hiddenColumns = nextHidden;
+    settings = nextSettings;
+    if (targetRosterId === activeRosterId) {
+      hiddenColumns = nextHidden;
+    }
+
+    const card = rosterCardsCache[targetRosterId];
+    if (card) {
+      rosterCardsCache[targetRosterId] = {
+        ...card,
+        hiddenColumns: [...nextHidden],
+      };
+      rosterCardsCache = { ...rosterCardsCache };
+    }
+
     columnSettingsOpen = false;
-    showToast('Columns updated', TOAST_TYPES.SUCCESS);
+    columnSettingsRosterId = '';
+    columnSettingsRosterName = '';
+    showToast(`Columns updated for ${rosterNamesById[targetRosterId] || 'roster'}`, TOAST_TYPES.SUCCESS);
   }
 
   function mapDifficultyFromRaid(value: unknown): Difficulty {
@@ -1637,15 +1976,17 @@
     return 'Solo';
   }
 
-  async function loadFromDatabase(options?: { silent?: boolean; overlay?: boolean }) {
+  async function loadFromDatabase(options?: { silent?: boolean; overlay?: boolean; rosterId?: string }) {
     const silent = Boolean(options?.silent);
     const overlay = options?.overlay !== false;
-    if (loading) return;
+    const targetRosterId = String(options?.rosterId || activeRosterId || '').trim();
+    if (!targetRosterId) return 0;
+    if (loading) return 0;
     if (overlay) loading = true;
     try {
       const hasDb = await ensureDatabaseReady(silent);
       if (!hasDb) {
-        return;
+        return 0;
       }
 
       await api.reloadCurrentDatabase?.();
@@ -1655,14 +1996,18 @@
         if (!silent) {
           showToast('No raid data available', TOAST_TYPES.WARNING);
         }
-        return;
+        return 0;
       }
 
       const period = await api.getWeeklyResetPeriod?.();
       const resetStart = Number(period?.start || 0);
       const resetEnd = Number(period?.end || 0);
 
-      const next = { ...characterData } as CharacterDataMap;
+      const isActiveTarget = targetRosterId === activeRosterId;
+      const rosterPayload = (await api.loadRoster?.(targetRosterId)) as RosterPayload | null;
+      const rosterState = (rosterPayload?.roster || {}) as Record<string, RosterCharacter | unknown>;
+      const targetCharacterData = (await api.loadCharacterData?.(targetRosterId)) as CharacterDataMap | null;
+      const next = { ...(targetCharacterData || {}) } as CharacterDataMap;
       let weeklyRowsInWindow = 0;
       let mappedBossRows = 0;
       let matchedCharacterRows = 0;
@@ -1683,13 +2028,13 @@
         mappedBossRows += 1;
 
         const characterName = String(raid.local_player || '');
-        const character = getCharacter(characterName);
+        const character = getCharacterFromRoster(rosterState, characterName);
         if (!character || character.visible === false) return;
         matchedCharacterRows += 1;
 
         if (!next[characterName]) next[characterName] = {} as CharacterBossData;
-        const previous = getRaidCell(characterData, characterName, boss);
-        const allowedDifficulties = getAllowedDifficulties(characterName, boss);
+        const previous = getRaidCell(next, characterName, boss);
+        const allowedDifficulties = getAllowedDifficultiesForRoster(rosterState, characterName, boss);
         const mappedDifficulty = mapDifficultyFromRaid(raid.difficulty);
         const resolvedDifficulty = allowedDifficulties.includes(mappedDifficulty)
           ? mappedDifficulty
@@ -1704,9 +2049,21 @@
         updatedCells += 1;
       });
 
-      characterData = next;
-      await persistCharacterData();
-      await syncDailyFromDatabaseData(false);
+      await api.saveCharacterData?.(targetRosterId, next);
+
+      if (isActiveTarget) {
+        characterData = next;
+        await syncDailyFromDatabaseData(false);
+      }
+
+      const card = rosterCardsCache[targetRosterId];
+      if (card) {
+        rosterCardsCache[targetRosterId] = {
+          ...card,
+          characterData: next,
+        };
+        rosterCardsCache = { ...rosterCardsCache };
+      }
 
       updateDebugSnapshot('loadFromDatabase:summary', {
         totalRows: Array.isArray(raids) ? raids.length : 0,
@@ -1726,6 +2083,8 @@
           );
         }
       }
+
+      return updatedCells;
     } catch (error: any) {
       const reported = await reportError(error, {
         code: ERROR_CODES.WEEKLY.LOAD_FROM_DB_FAILED,
@@ -1733,7 +2092,7 @@
         context: {
           phase: 'loadFromDatabase',
           action: 'load-weekly-from-database',
-          rosterId: activeRosterId,
+          rosterId: targetRosterId,
           activeRosterId,
         },
         showToast: false,
@@ -1741,6 +2100,7 @@
       if (!silent) {
         showToast(reported.message, TOAST_TYPES.ERROR);
       }
+      return 0;
     } finally {
       if (overlay) {
         loading = false;
@@ -1749,22 +2109,58 @@
   }
 
   async function resetWeekly() {
-    if (loading || !activeRosterId) return;
+    await resetWeeklyForRoster(activeRosterId);
+  }
 
-    const hiddenStates = preserveHiddenStates(characterData);
+  async function resetWeeklyForRoster(targetRosterId: string) {
+    const rosterId = String(targetRosterId || '').trim();
+    if (loading || !rosterId) return;
+
+    const isActiveTarget = rosterId === activeRosterId;
+    const currentCharacterData = isActiveTarget
+      ? characterData
+      : (((await api.loadCharacterData?.(rosterId)) as CharacterDataMap | null) || {});
+
+    const hiddenStates = preserveHiddenStates(currentCharacterData || {});
     const next = {} as CharacterDataMap;
     restoreHiddenStates(next, hiddenStates);
-    characterData = next;
 
-    dailyData = buildDefaultDailyDataForRoster();
-    roster = {
-      ...roster,
-      dailyData,
+    const rosterPayload = (await api.loadRoster?.(rosterId)) as RosterPayload | null;
+    const rosterState = { ...((rosterPayload?.roster || {}) as Record<string, unknown>) };
+    const orderState = [...((rosterPayload?.order || Object.keys(rosterState)) as string[])];
+    const nextDailyData = buildDefaultDailyDataForRosterFrom(rosterState, orderState);
+    const nextRosterState = {
+      ...rosterState,
+      dailyData: nextDailyData,
     };
 
-    await persistCharacterData();
-    await persistRoster();
-    showToast('Weekly data reset', TOAST_TYPES.SUCCESS);
+    await Promise.all([
+      api.saveCharacterData?.(rosterId, next),
+      api.saveRoster?.(rosterId, {
+        roster: nextRosterState,
+        order: orderState,
+      }),
+    ]);
+
+    if (isActiveTarget) {
+      characterData = next;
+      dailyData = nextDailyData;
+      roster = nextRosterState as any;
+    }
+
+    const card = rosterCardsCache[rosterId];
+    if (card) {
+      rosterCardsCache[rosterId] = {
+        ...card,
+        characterData: next,
+        dailyData: nextDailyData,
+        roster: nextRosterState,
+        order: orderState,
+      };
+      rosterCardsCache = { ...rosterCardsCache };
+    }
+
+    showToast(`Weekly data reset for ${rosterNamesById[rosterId] || 'roster'}`, TOAST_TYPES.SUCCESS);
   }
 
   async function resetDaily() {
@@ -1780,12 +2176,23 @@
     showToast('Daily data reset', TOAST_TYPES.SUCCESS);
   }
 
-  async function toggleCharacterDaily(characterName: string, key: 'guardianRaid' | 'chaosDungeon', checked: boolean) {
-    if (loading || !activeRosterId) return;
-    if (!dailyData) return;
+  async function toggleCharacterDaily(
+    rosterId: string,
+    characterName: string,
+    key: 'guardianRaid' | 'chaosDungeon',
+    checked: boolean
+  ) {
+    const targetRosterId = String(rosterId || '').trim();
+    if (loading || !targetRosterId) return;
 
-    dailyData.characters[characterName] = {
-      ...(dailyData.characters[characterName] || {
+    const {
+      rosterState,
+      orderState,
+      dailyState,
+    } = await getDailyStateForTarget(targetRosterId);
+
+    dailyState.characters[characterName] = {
+      ...(dailyState.characters[characterName] || {
         guardianRaid: defaultActivity(),
         chaosDungeon: defaultActivity(),
       }),
@@ -1796,8 +2203,7 @@
       }),
     };
 
-    roster = { ...roster, dailyData };
-    await persistRoster();
+    await persistDailyStateForTarget(targetRosterId, rosterState, orderState, dailyState);
   }
 
   async function syncDailyFromDatabaseData(showSuccessToast = true) {
@@ -1881,39 +2287,6 @@
     } finally {
       loading = false;
     }
-  }
-
-  function getCharacterGold(characterName: string) {
-    const character = getCharacter(characterName);
-    if (!character) return 0;
-
-    let total = 0;
-    visibleBosses.forEach((boss) => {
-      const raid = getRaidConfigByBoss(boss);
-      if (!raid) return;
-      const cell = getRaidCell(characterData, characterName, boss);
-      if (!cell.cleared || cell.hidden) return;
-
-      const diff = cell.difficulty === 'Hard' ? 'hm' : 'nm';
-      const goldValue = Number((raid as any).gold?.[diff] || 0);
-      const chestCost = Number((raid as any).chest?.[diff] || 0);
-      total += cell.chestOpened ? (goldValue - chestCost) : goldValue;
-    });
-
-    const extra = Number((characterData?.[characterName] as CharacterBossData)?._extraGold || 0);
-    return total + extra;
-  }
-
-  function computeGoldByCharacter(
-    names: string[],
-    _characterDataState: CharacterDataMap,
-    _visibleBossesState: string[]
-  ): Record<string, number> {
-    const next: Record<string, number> = {};
-    names.forEach((characterName) => {
-      next[characterName] = getCharacterGold(characterName);
-    });
-    return next;
   }
 
   function getCharacterGoldForCard(characterName: string, cardCharacterData: CharacterDataMap, cardVisibleBosses: string[]) {
@@ -2061,8 +2434,7 @@
                   class:completed={Boolean(cardDailyData?.roster?.fieldBoss?.completed)}
                   title={getRosterDailyTooltipFrom(cardDailyData, 'fieldBoss') || 'Toggle Field Boss'}
                   aria-label="Toggle Field Boss"
-                  disabled={!card.isActive}
-                  on:click={() => card.isActive && toggleRosterDaily('fieldBoss')}
+                  on:click={() => toggleRosterDaily(card.rosterId, 'fieldBoss')}
                 >
                   <img src="./assets/icons/items/field_boss_icon.webp" alt="" aria-hidden="true" />
                   <span class="roster-daily-check">✓</span>
@@ -2074,8 +2446,7 @@
                   class:completed={Boolean(cardDailyData?.roster?.chaosGate?.completed)}
                   title={getRosterDailyTooltipFrom(cardDailyData, 'chaosGate') || 'Toggle Chaos Gate'}
                   aria-label="Toggle Chaos Gate"
-                  disabled={!card.isActive}
-                  on:click={() => card.isActive && toggleRosterDaily('chaosGate')}
+                  on:click={() => toggleRosterDaily(card.rosterId, 'chaosGate')}
                 >
                   <img src="./assets/icons/items/chaos_gate_icon.webp" alt="" aria-hidden="true" />
                   <span class="roster-daily-check">✓</span>
@@ -2086,17 +2457,26 @@
 
           <div class="weekly-actions" style="margin-bottom: 12px;">
             <div class="weekly-actions-left">
-              {#if card.isActive}
-                <button type="button" class="header-icon-btn weekly-columns-btn" aria-label="Configure raid columns" title="Configure raid columns" on:click={openColumnsConfig}>⚙️</button>
-                <button type="button" class="header-icon-btn weekly-action-btn" on:click={() => loadFromDatabase()} disabled={loading}>
-                  <img src="./assets/icons/items/download.svg" alt="" aria-hidden="true" />
-                  <span class="btn-label">Load Data</span>
-                </button>
-                <button type="button" class="header-icon-btn weekly-action-btn" on:click={() => openWeeklyConfirm('reset-weekly')} disabled={loading}>
-                  <img src="./assets/icons/refresh.svg" alt="" aria-hidden="true" />
-                  <span class="btn-label">Reset Data</span>
-                </button>
-              {/if}
+              <button
+                type="button"
+                class="header-icon-btn weekly-columns-btn"
+                aria-label="Configure raid columns"
+                title="Configure raid columns"
+                on:click={() => openColumnsConfig(card.rosterId, card.rosterName, card.hiddenColumns)}
+              >⚙️</button>
+              <button type="button" class="header-icon-btn weekly-action-btn" on:click={() => loadFromDatabase({ rosterId: card.rosterId })} disabled={loading}>
+                <img src="./assets/icons/items/download.svg" alt="" aria-hidden="true" />
+                <span class="btn-label">Load Data</span>
+              </button>
+              <button
+                type="button"
+                class="header-icon-btn weekly-action-btn"
+                on:click={() => openWeeklyConfirm('reset-weekly', card.rosterId, card.rosterName)}
+                disabled={loading}
+              >
+                <img src="./assets/icons/refresh.svg" alt="" aria-hidden="true" />
+                <span class="btn-label">Reset Data</span>
+              </button>
             </div>
             <div class="weekly-actions-right">
               {#if card.isActive}
@@ -2164,72 +2544,47 @@
                       {#if !eligible}
                         <span style="color:#888;">-</span>
                       {:else}
-                        {#if card.isActive}
-                          <div class="cell" class:cell-hidden={cell.hidden}>
-                            <button
-                              type="button"
-                              class={`difficulty-box ${cell.difficulty.toLowerCase()}`}
-                              class:inactive={!cell.cleared}
-                              on:click={() => cycleDifficulty(characterName, boss)}
-                              style={`visibility: ${cell.cleared ? 'visible' : 'hidden'}`}
-                              title="Cycle difficulty"
-                              disabled={!cell.cleared}
-                            >
-                              {cell.difficulty}
-                            </button>
+                        <div class="cell" class:cell-hidden={cell.hidden}>
+                          <button
+                            type="button"
+                            class={`difficulty-box ${cell.difficulty.toLowerCase()}`}
+                            class:inactive={!cell.cleared}
+                            on:click={() => cycleDifficulty(card.rosterId, characterName, boss)}
+                            style={`visibility: ${cell.cleared ? 'visible' : 'hidden'}`}
+                            title="Cycle difficulty"
+                            disabled={!cell.cleared}
+                          >
+                            {cell.difficulty}
+                          </button>
 
-                            <input
-                              type="checkbox"
-                              class="checkmark"
-                              checked={cell.cleared}
-                              title={cell.timestamp ? formatTimestamp(cell.timestamp) : ''}
-                              on:change={(event) => toggleRaid(characterName, boss, Boolean((event.currentTarget as HTMLInputElement).checked))}
-                              aria-label={`Toggle ${boss} for ${characterName}`}
-                            />
+                          <input
+                            type="checkbox"
+                            class="checkmark"
+                            checked={cell.cleared}
+                            title={cell.timestamp ? formatTimestamp(cell.timestamp) : ''}
+                            on:change={(event) => toggleRaid(card.rosterId, characterName, boss, Boolean((event.currentTarget as HTMLInputElement).checked))}
+                            aria-label={`Toggle ${boss} for ${characterName}`}
+                          />
 
-                            <span
-                              class="eye-icon"
-                              role="button"
-                              tabindex="0"
-                              title="Hide from gold"
-                              on:click={() => toggleHidden(characterName, boss)}
-                              on:keydown={(event) => (event.key === 'Enter' || event.key === ' ') && toggleHidden(characterName, boss)}
-                            >👁</span>
+                          <span
+                            class="eye-icon"
+                            role="button"
+                            tabindex="0"
+                            title="Hide from gold"
+                            on:click={() => toggleHidden(card.rosterId, characterName, boss)}
+                            on:keydown={(event) => (event.key === 'Enter' || event.key === ' ') && toggleHidden(card.rosterId, characterName, boss)}
+                          >👁</span>
 
-                            <span
-                              class="chest-icon"
-                              class:active={cell.chestOpened}
-                              role="button"
-                              tabindex="0"
-                              title="Chest opened"
-                              on:click={() => toggleChest(characterName, boss)}
-                              on:keydown={(event) => (event.key === 'Enter' || event.key === ' ') && toggleChest(characterName, boss)}
-                            ></span>
-                          </div>
-                        {:else}
-                          <div class="cell" class:cell-hidden={cell.hidden}>
-                            <span
-                              class={`difficulty-box ${cell.difficulty.toLowerCase()}`}
-                              class:inactive={!cell.cleared}
-                              style={`visibility: ${cell.cleared ? 'visible' : 'hidden'}`}
-                            >
-                              {cell.difficulty}
-                            </span>
-                            <input
-                              type="checkbox"
-                              class="checkmark"
-                              checked={cell.cleared}
-                              title={cell.timestamp ? formatTimestamp(cell.timestamp) : ''}
-                              disabled
-                              aria-label={`Readonly ${boss} for ${characterName}`}
-                            />
-                            <span
-                              class="chest-icon"
-                              class:active={cell.chestOpened}
-                              title="Chest opened"
-                            ></span>
-                          </div>
-                        {/if}
+                          <span
+                            class="chest-icon"
+                            class:active={cell.chestOpened}
+                            role="button"
+                            tabindex="0"
+                            title="Chest opened"
+                            on:click={() => toggleChest(card.rosterId, characterName, boss)}
+                            on:keydown={(event) => (event.key === 'Enter' || event.key === ' ') && toggleChest(card.rosterId, characterName, boss)}
+                          ></span>
+                        </div>
                       {/if}
                     </td>
                   {/each}
@@ -2239,32 +2594,30 @@
                       <div class="gold-display">
                         <span class="gold-icon" aria-hidden="true"></span>
                         <span class="gold-amount">{Number(cardGoldByCharacter[characterName] || 0).toLocaleString()}</span>
-                        {#if card.isActive}
-                          <button
-                            type="button"
-                            class="gold-bonus-handle"
-                            title="Add bonus gold"
-                            aria-label={`Add bonus gold for ${characterName}`}
-                            on:click|stopPropagation={() => openGoldBonus(characterName)}
-                          >+
-                          </button>
+                        <button
+                          type="button"
+                          class="gold-bonus-handle"
+                          title="Add bonus gold"
+                          aria-label={`Add bonus gold for ${characterName}`}
+                          on:click|stopPropagation={() => openGoldBonus(card.rosterId, characterName)}
+                        >+
+                        </button>
 
-                          {#if goldPopoverCharacter === characterName}
-                            <div class="gold-bonus-popover">
-                              <input
-                                class="gold-bonus-input"
-                                type="number"
-                                min="0"
-                                step="10"
-                                bind:value={goldBonusInput}
-                                bind:this={goldBonusInputRef}
-                                aria-label="Extra gold"
-                                on:mousedown|stopPropagation
-                                on:keydown={(event) => event.key === 'Enter' && applyGoldBonus(characterName)}
-                              />
-                              <button type="button" class="gold-bonus-confirm primary" on:mousedown|stopPropagation on:click={() => applyGoldBonus(characterName)}>OK</button>
-                            </div>
-                          {/if}
+                        {#if goldPopoverTarget && goldPopoverTarget.rosterId === card.rosterId && goldPopoverTarget.characterName === characterName}
+                          <div class="gold-bonus-popover">
+                            <input
+                              class="gold-bonus-input"
+                              type="number"
+                              min="0"
+                              step="10"
+                              bind:value={goldBonusInput}
+                              bind:this={goldBonusInputRef}
+                              aria-label="Extra gold"
+                              on:mousedown|stopPropagation
+                              on:keydown={(event) => event.key === 'Enter' && applyGoldBonus(card.rosterId, characterName)}
+                            />
+                            <button type="button" class="gold-bonus-confirm primary" on:mousedown|stopPropagation on:click={() => applyGoldBonus(card.rosterId, characterName)}>OK</button>
+                          </div>
                         {/if}
                       </div>
                     </td>
@@ -2277,8 +2630,7 @@
                         class="daily-checkmark"
                         checked={Boolean(cardDailyData?.characters?.[characterName]?.guardianRaid?.completed)}
                         title={getCharacterDailyTooltipFrom(cardDailyData, characterName, 'guardianRaid')}
-                        disabled={!card.isActive}
-                        on:change={(event) => card.isActive && toggleCharacterDaily(characterName, 'guardianRaid', Boolean((event.currentTarget as HTMLInputElement).checked))}
+                        on:change={(event) => toggleCharacterDaily(card.rosterId, characterName, 'guardianRaid', Boolean((event.currentTarget as HTMLInputElement).checked))}
                         aria-label={`Guardian raid completed for ${characterName}`}
                       />
                     </td>
@@ -2291,8 +2643,7 @@
                         class="daily-checkmark"
                         checked={Boolean(cardDailyData?.characters?.[characterName]?.chaosDungeon?.completed)}
                         title={getCharacterDailyTooltipFrom(cardDailyData, characterName, 'chaosDungeon')}
-                        disabled={!card.isActive}
-                        on:change={(event) => card.isActive && toggleCharacterDaily(characterName, 'chaosDungeon', Boolean((event.currentTarget as HTMLInputElement).checked))}
+                        on:change={(event) => toggleCharacterDaily(card.rosterId, characterName, 'chaosDungeon', Boolean((event.currentTarget as HTMLInputElement).checked))}
                         aria-label={`Chaos dungeon completed for ${characterName}`}
                       />
                     </td>
@@ -2326,7 +2677,7 @@
           </tbody>
         </table>
 
-        {#if card.isActive && columnSettingsOpen}
+        {#if columnSettingsOpen && columnSettingsRosterId === card.rosterId}
           <div id="column-settings-modal" style="display: block;" role="dialog" aria-modal="true" aria-labelledby="column-settings-title">
             <div class="modal-overlay"></div>
             <div class="modal-content column-settings-modal" role="document">

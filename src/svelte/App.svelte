@@ -5,6 +5,7 @@
   import { reportError } from './utils/errorHandler';
   import { ERROR_CODES } from './utils/errorCodes';
   import RosterSwitcher from './components/RosterSwitcher.svelte';
+  import { rosterChangeVersion } from './stores/rosterSync';
 
   const ROUTES = ['weekly', 'roster', 'friends', 'settings', 'wizard', 'howto'];
   const MAIN_ROUTES = ['weekly', 'roster', 'friends'] as const;
@@ -14,7 +15,9 @@
   type MainRoute = (typeof MAIN_ROUTES)[number];
   const api: AppApi = window.api;
   const ROSTER_META_KEYS = new Set(['dailyData']);
-  let firstTimeSetupChecked = false;
+  let setupCheckInFlight = false;
+  let lastSetupCheckedRosterId = '';
+  let unsubscribeRosterChanges: (() => void) | null = null;
   let donateButton: { destroy?: () => void } | null = null;
 
   function normalizeRoute(input: string): AppRoute {
@@ -402,9 +405,9 @@
     return characterKeys.length === 0;
   }
 
-  async function shouldOpenSetupAssistant() {
+  async function shouldOpenSetupAssistant(activeRosterIdInput?: string | null) {
     await window.__API_READY__;
-    const activeRosterId = await api.getActiveRoster();
+    const activeRosterId = String(activeRosterIdInput ?? await api.getActiveRoster() ?? '').trim();
     if (!activeRosterId) {
       return true;
     }
@@ -413,19 +416,24 @@
     return isRosterPayloadEmpty(payload);
   }
 
-  async function runFirstTimeSetupCheck() {
-    if (firstTimeSetupChecked) {
+  async function runFirstTimeSetupCheck(force = false) {
+    if (setupCheckInFlight) {
       return;
     }
 
-    firstTimeSetupChecked = true;
-
     try {
+      const activeRosterId = String(await api.getActiveRoster() || '').trim();
+      if (!force && activeRosterId && activeRosterId === lastSetupCheckedRosterId) {
+        return;
+      }
+
+      setupCheckInFlight = true;
       await new Promise<void>((resolve) => {
         window.setTimeout(resolve, 500);
       });
 
-      const shouldOpenWizard = await shouldOpenSetupAssistant();
+      const shouldOpenWizard = await shouldOpenSetupAssistant(activeRosterId);
+      lastSetupCheckedRosterId = activeRosterId;
       if (shouldOpenWizard && currentRoute !== 'wizard') {
         window.location.hash = 'wizard';
       }
@@ -439,6 +447,8 @@
         },
         showToast: false,
       });
+    } finally {
+      setupCheckInFlight = false;
     }
   }
 
@@ -447,6 +457,16 @@
     window.addEventListener('wtl-close-modal', onWindowCloseModalRequest as EventListener);
     startModalFocusObserver();
     void runFirstTimeSetupCheck();
+
+    let isInitialRosterSync = true;
+    unsubscribeRosterChanges = rosterChangeVersion.subscribe(() => {
+      if (isInitialRosterSync) {
+        isInitialRosterSync = false;
+        return;
+      }
+
+      void runFirstTimeSetupCheck(true);
+    });
   });
 
   onDestroy(() => {
@@ -463,6 +483,9 @@
       cancelAnimationFrame(modalFocusRaf);
       modalFocusRaf = 0;
     }
+
+    unsubscribeRosterChanges?.();
+    unsubscribeRosterChanges = null;
   });
 
   function onOverlayKeyDown(event: KeyboardEvent) {

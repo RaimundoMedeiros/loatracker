@@ -2,7 +2,8 @@
   import { onDestroy, onMount, tick } from 'svelte';
   import { UIHelper } from '../../utils/uiHelper';
   import { CHARACTER_CLASSES, CLASS_ICONS, MATHI_API_CONFIG, TOAST_TYPES, mapApiClassToDisplay } from '../../legacy/config/constants.js';
-  import { ApiService } from '../../legacy/services/ApiService.js';
+  import { BibleApiService } from '../../services/BibleApiService';
+  import type { BibleRegion } from '../../services/BibleApiService';
   import {
     formatCombatPowerDisplay,
     formatItemLevelDisplay,
@@ -59,14 +60,14 @@
   let characterFormOpen = false;
   let bibleCharacterModalOpen = false;
   let bibleCharacterName = '';
-  let bibleRegion = MATHI_API_CONFIG.DEFAULT_REGION || 'NA';
+  let bibleRegion: BibleRegion = (MATHI_API_CONFIG.DEFAULT_REGION === 'EU' ? 'EU' : 'NA');
   let bibleLoading = false;
   let removeConfirmCancelButton: HTMLButtonElement | null = null;
   let removeConfirmActionButton: HTMLButtonElement | null = null;
   let removeConfirmReturnFocusEl: HTMLElement | null = null;
 
   const REFRESH_COOLDOWN_MS = 60_000;
-  const DEFAULT_MATHI_REGION = 'NA';
+  const DEFAULT_MATHI_REGION: BibleRegion = 'NA';
 
   $: characters = orderedEntries(roster, order);
   $: isEditing = Boolean(editingName);
@@ -214,7 +215,7 @@
   function openBibleCharacterModal() {
     if (loading) return;
     bibleCharacterName = '';
-    bibleRegion = MATHI_API_CONFIG.DEFAULT_REGION || 'NA';
+    bibleRegion = MATHI_API_CONFIG.DEFAULT_REGION === 'EU' ? 'EU' : 'NA';
     bibleCharacterModalOpen = true;
   }
 
@@ -266,7 +267,7 @@
 
     bibleLoading = true;
     const completed = await withAsyncError(async () => {
-      const payload = await ApiService.fetchCharacterByName(bibleRegion, trimmedName);
+      const payload = await BibleApiService.fetchCharacterByName(bibleRegion, trimmedName);
       const normalized = normalizeMathiCharacterPayload(payload);
 
       if (!normalized.name || normalized.ilvl <= 0) {
@@ -367,7 +368,7 @@
         return true;
       }
 
-      const apiCharacters = await ApiService.fetchFullRoster(DEFAULT_MATHI_REGION, firstCharacterName);
+      const apiCharacters = await BibleApiService.fetchFullRoster(DEFAULT_MATHI_REGION, firstCharacterName);
       if (!Array.isArray(apiCharacters) || apiCharacters.length === 0) {
         showToast('No characters found on Bible API', TOAST_TYPES.ERROR);
         return true;

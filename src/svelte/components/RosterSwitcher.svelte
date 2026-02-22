@@ -3,31 +3,13 @@
   import { UIHelper } from '../utils/uiHelper';
   import { withAsyncError } from '../utils/errorWrappers';
   import { ERROR_CODES } from '../utils/errorCodes';
-  import { multiRosterManager } from '../legacy/modules/MultiRosterManager.js';
   import { TOAST_TYPES } from '../legacy/config/constants.js';
-  import type { AppApi, RosterMeta, SettingsPayload } from '../../types/app-api';
+  import type { RosterMeta, SettingsPayload } from '../../types/app-api';
   import { notifyRosterChanged, notifyVisibleRostersChanged, rosterChangeVersion } from '../stores/rosterSync';
+  import { DEFAULT_SETTINGS, RosterService } from '../services/RosterService';
 
   type DialogMode = 'create' | 'rename' | 'delete' | null;
 
-  const DEFAULT_SETTINGS: SettingsPayload = {
-    dbPath: '',
-    dbLastLoadedAt: null,
-    timezone: 'browser',
-    dateFormat: 'browser',
-    timeFormat: 'browser',
-    autoRaidUpdateMinutes: 0,
-    autoRaidUpdateOnFocus: false,
-    closeToTray: false,
-    closeToTrayPrompted: false,
-    hiddenColumns: [],
-    hiddenColumnsByRoster: {},
-    hiddenBossColumns: [],
-    visibleWeeklyRosters: [],
-    visibleWeeklyRostersByRoster: {},
-  };
-
-  const api: AppApi = window.api;
   const ui = new UIHelper();
 
   let rosters: RosterMeta[] = [];
@@ -101,23 +83,10 @@
 
   async function refresh() {
     await withAsyncError(async () => {
-      const [list, active, loadedSettings] = await Promise.all([
-        api.getRosterList(),
-        api.getActiveRoster(),
-        api.loadSettings(),
-      ]);
-
-      rosters = Array.isArray(list) ? list : [];
-      activeRosterId = String(active || rosters[0]?.id || '');
-      settings = {
-        ...DEFAULT_SETTINGS,
-        ...(loadedSettings || {}),
-      } as SettingsPayload;
-
-      if (!activeRosterId && rosters.length > 0) {
-        activeRosterId = rosters[0].id;
-        await api.switchActiveRoster(activeRosterId);
-      }
+      const snapshot = await RosterService.loadRosterSwitcherState();
+      rosters = snapshot.rosters;
+      activeRosterId = snapshot.activeRosterId;
+      settings = snapshot.settings;
 
       await ensureVisibleState();
       return true;
@@ -139,7 +108,7 @@
     const byRoster = currentSettings.visibleWeeklyRostersByRoster || {};
     const selected = Array.isArray(byRoster[currentActiveRosterId])
       ? byRoster[currentActiveRosterId]
-      : (Array.isArray(currentSettings.visibleWeeklyRosters) ? currentSettings.visibleWeeklyRosters : []);
+      : [];
 
     const safe = new Set(selected);
     if (currentActiveRosterId) {
@@ -172,7 +141,7 @@
       },
     };
 
-    await api.saveSettings(nextSettings);
+    await RosterService.saveSettings(nextSettings);
     settings = nextSettings;
     emitSettingsChanged(nextSettings);
     notifyVisibleRostersChanged();
@@ -185,14 +154,13 @@
       return;
     }
 
-    const persistedActive = String((await api.getActiveRoster()) || '').trim();
+    const persistedActive = await RosterService.getActiveRosterId();
     if (nextRosterId === persistedActive) {
       activeRosterId = persistedActive;
       return;
     }
 
-    await multiRosterManager.initialize();
-    await multiRosterManager.switchActiveRoster(nextRosterId);
+    await RosterService.switchActiveRoster(nextRosterId);
     activeRosterId = nextRosterId;
     await refresh();
     await ensureVisibleState();
@@ -249,9 +217,9 @@
     const actionResult = await withAsyncError(async () => {
       if (dialogMode === 'create') {
         const name = dialogNameInput.trim();
-        const newRosterId = await api.createRoster(name);
+        const newRosterId = await RosterService.createRoster(name);
         if (newRosterId) {
-          await api.switchActiveRoster(newRosterId);
+          await RosterService.switchActiveRoster(newRosterId);
         }
         await refresh();
         await ensureVisibleState();
@@ -268,7 +236,7 @@
           closeDialog();
           return;
         }
-        await api.renameRoster(activeRosterId, nextName);
+        await RosterService.renameRoster(activeRosterId, nextName);
         await refresh();
         notifyRosterChanged();
         showToast('Roster renamed', TOAST_TYPES.SUCCESS);
@@ -277,7 +245,7 @@
       }
 
       if (dialogMode === 'delete' && activeRosterId && sortedRosters.length > 1) {
-        await api.deleteRoster(activeRosterId);
+        await RosterService.deleteRoster(activeRosterId);
         await refresh();
         await ensureVisibleState();
         notifyRosterChanged();
@@ -332,7 +300,7 @@
         },
       };
 
-      await api.saveSettings(nextSettings);
+      await RosterService.saveSettings(nextSettings);
       settings = nextSettings;
       emitSettingsChanged(nextSettings);
       notifyVisibleRostersChanged();

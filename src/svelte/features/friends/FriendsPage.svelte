@@ -6,9 +6,7 @@
   import { reportError } from '../../utils/errorHandler';
   import { ERROR_CODES } from '../../utils/errorCodes';
   import { withAsyncError } from '../../utils/errorWrappers';
-  import { StateManager } from '../../legacy/modules/stateManager.js';
-  import { RosterManager } from '../../legacy/modules/rosterManager.js';
-  import { WeeklyTracker } from '../../legacy/modules/weeklyTracker.js';
+  import { FriendsStateService } from '../../services/FriendsStateService';
   import { FriendsRosterService } from './services/FriendsRosterService';
   import {
     DEFAULT_FRIENDS_CONFIG,
@@ -77,7 +75,6 @@
   let addAlias = '';
   let uploading = false;
   let isBusy = false;
-  let pendingPinSync = false;
   let refreshCooldownUntil = 0;
   let uploadCooldownUntil = 0;
   let cooldownNow = Date.now();
@@ -88,6 +85,8 @@
   let selfCodeVisible = false;
   let selfPinVisible = false;
   let setupVisible = false;
+  let editingAliasFriendId = '';
+  let aliasDraft = '';
   let rows: FriendRow[] = [];
   let heatmapGroups: HeatmapGroup[] = [];
   let heatmapDetailRows: HeatmapDetailRow[] = [];
@@ -127,9 +126,7 @@
 
   const friendSnapshots = new Map<string, FriendSnapshot>();
   const ui = new UIHelper();
-  let appState: StateManager | null = null;
-  let rosterManagerRef: RosterManager | null = null;
-  let weeklyTrackerRef: WeeklyTracker | null = null;
+  let friendsState: FriendsStateService | null = null;
   let friendsService: FriendsRosterService | null = null;
   let friendsConfig: FriendsRosterConfig = { ...DEFAULT_FRIENDS_CONFIG };
   let onGlobalKeydown: ((event: KeyboardEvent) => void) | null = null;
@@ -221,23 +218,14 @@
     try {
       await (window as any).__API_READY__;
 
-      appState = new StateManager();
-      await appState.initializeMultiRoster();
+      friendsState = new FriendsStateService(window.api);
+      await friendsState.initialize();
 
-      const rosterManager = new RosterManager(appState);
-      const weeklyTracker = new WeeklyTracker(appState);
-      rosterManagerRef = rosterManager;
-      weeklyTrackerRef = weeklyTracker;
-
-      const savedSettings = await window.api.loadSettings();
-      if (savedSettings) {
-        appState.setState({ settings: savedSettings });
-      }
-
-      await rosterManager.loadRoster();
-      await weeklyTracker.loadData();
-
-      friendsService = new FriendsRosterService(weeklyTracker, rosterManager, appState);
+      friendsService = new FriendsRosterService(
+        friendsState.toWeeklyTrackerAdapter(),
+        friendsState.toRosterManagerAdapter(),
+        friendsState.toStateAdapter(),
+      );
       configured = friendsService.isConfigured();
       selfCode = String(friendsService.getSelfRosterCode() || '').trim();
 
@@ -268,7 +256,7 @@
   }
 
   async function handleActiveRosterChanged() {
-    if (!appState || !rosterManagerRef || !weeklyTrackerRef) {
+    if (!friendsState) {
       return;
     }
 
@@ -276,15 +264,13 @@
       loading = true;
       message = '';
 
-      const persistedActiveRosterId = String((await window.api.getActiveRoster()) || '').trim();
-      if (persistedActiveRosterId) {
-        appState.setState({ activeRosterId: persistedActiveRosterId });
-      }
+      await friendsState.reloadActiveRosterContext();
 
-      await rosterManagerRef.loadRoster();
-      await weeklyTrackerRef.loadData();
-
-      friendsService = new FriendsRosterService(weeklyTrackerRef, rosterManagerRef, appState);
+      friendsService = new FriendsRosterService(
+        friendsState.toWeeklyTrackerAdapter(),
+        friendsState.toRosterManagerAdapter(),
+        friendsState.toStateAdapter(),
+      );
       configured = friendsService.isConfigured();
       selfCode = String(friendsService.getSelfRosterCode() || '').trim();
 
@@ -306,7 +292,7 @@
         context: {
           phase: 'handleActiveRosterChanged',
           action: 'sync-after-roster-change',
-          rosterId: String(appState?.get('activeRosterId') || ''),
+          rosterId: String(friendsState?.getActiveRosterId() || ''),
         },
         showToast: false,
       });
@@ -317,7 +303,7 @@
   }
 
   function getFriendsConfig(): FriendsRosterConfig {
-    const settings = appState?.get('settings') || {};
+    const settings = friendsState?.get('settings') || {};
     return {
       ...DEFAULT_FRIENDS_CONFIG,
       ...normalizeFriendsConfig((settings as any).friendsRoster),
@@ -325,24 +311,24 @@
   }
 
   function saveFriendsConfig(nextConfig: FriendsRosterConfig) {
-    if (!appState) return;
+    if (!friendsState) return;
 
-    const settings = appState.get('settings') || {};
-    appState.setState({
+    const settings = friendsState.get('settings') || {};
+    friendsState.setState({
       settings: {
         ...settings,
         friendsRoster: nextConfig,
       },
     });
 
-    void window.api.saveSettings(appState.get('settings')).catch((error) => {
+    void friendsState.saveSettings((friendsState.get('settings') || {}) as any).catch((error) => {
       void reportError(error, {
         code: ERROR_CODES.FRIENDS.SAVE_CONFIG_FAILED,
         severity: 'warning',
         context: {
           phase: 'saveFriendsConfig',
           action: 'persist-friends-config',
-          rosterId: String(appState?.get('activeRosterId') || ''),
+          rosterId: String(friendsState?.getActiveRosterId() || ''),
         },
         showToast: false,
       });
@@ -800,10 +786,6 @@
 
   function setBusy(nextBusy: boolean) {
     isBusy = Boolean(nextBusy);
-    if (!isBusy && pendingPinSync) {
-      pendingPinSync = false;
-      void syncPinChangeUpload();
-    }
   }
 
   function scheduleAutoSync() {
@@ -973,52 +955,7 @@
       return;
     }
 
-    if (isBusy) {
-      pendingPinSync = true;
-      return;
-    }
-
-    await syncPinChangeUpload();
     scheduleAutoSync();
-  }
-
-  async function syncPinChangeUpload() {
-    if (!friendsService) return;
-    const service = friendsService;
-
-    const currentSelfCode = service.getSelfRosterCode();
-    const pin = resolveSelfPin(friendsConfig);
-
-    if (!currentSelfCode || !pin || !service.isConfigured() || isBusy) {
-      return;
-    }
-
-    setBusy(true);
-    uploading = true;
-
-    const result = await withAsyncError(
-      () => service.uploadSelfWeekly(pin),
-      {
-        code: ERROR_CODES.FRIENDS.PIN_SYNC_FAILED,
-        severity: 'error',
-        context: {
-          phase: 'syncPinChangeUpload',
-          action: 'sync-pin-upload',
-          rosterCode: currentSelfCode,
-        },
-        showToast: false,
-      }
-    );
-
-    if (result) {
-      persistLastUploadFingerprint(currentSelfCode, result.fingerprint);
-      showToast('PIN updated and synced.', TOAST_TYPES.SUCCESS);
-    } else {
-      showToast('Failed to sync updated PIN.', TOAST_TYPES.ERROR);
-    }
-
-    uploading = false;
-    setBusy(false);
   }
 
   async function handleManualUpload() {
@@ -1187,6 +1124,49 @@
     showToast('Friend removed.', TOAST_TYPES.INFO);
   }
 
+  function startEditingFriendAlias(friendId: string) {
+    const friend = friendsConfig.friends.find((entry) => entry.id === friendId);
+    if (!friend) {
+      return;
+    }
+
+    editingAliasFriendId = friendId;
+    aliasDraft = String(friend.alias || '').trim();
+  }
+
+  function cancelEditingFriendAlias() {
+    editingAliasFriendId = '';
+    aliasDraft = '';
+  }
+
+  function saveEditingFriendAlias(friendId: string) {
+    const friend = friendsConfig.friends.find((entry) => entry.id === friendId);
+    if (!friend) {
+      cancelEditingFriendAlias();
+      return;
+    }
+
+    const nextAlias = String(aliasDraft || '').trim().slice(0, 32);
+
+    saveFriendsConfig({
+      ...friendsConfig,
+      friends: friendsConfig.friends.map((entry) => {
+        if (entry.id !== friendId) {
+          return entry;
+        }
+
+        return {
+          ...entry,
+          alias: nextAlias || undefined,
+        };
+      }),
+    });
+
+    cancelEditingFriendAlias();
+    recomputeUiModels();
+    showToast(nextAlias ? 'Alias updated.' : 'Alias cleared.', TOAST_TYPES.SUCCESS);
+  }
+
   async function refreshFriends(showToastFeedback: boolean) {
     const service = friendsService;
     if (!service) return;
@@ -1271,7 +1251,7 @@
         context: {
           phase: 'refreshFriends',
           action: 'refresh-friends',
-          rosterId: String(appState?.get('activeRosterId') || ''),
+          rosterId: String(friendsState?.getActiveRosterId() || ''),
           showToastFeedback,
           friendsCount: friendsConfig.friends.length,
         },
@@ -1501,21 +1481,23 @@
             </label>
           </div>
 
-          <button
-            id="friends-upload-profile-btn"
-            class="friends-profile-upload-btn"
-            type="button"
-            disabled={disableUpload || loading || !configured}
-            title={uploadTitle}
-            on:click={handleManualUpload}
-          >
-            {uploading ? 'Uploading...' : 'Upload Weekly'}
-          </button>
+          <div class="friends-profile-actions">
+            <button
+              id="friends-upload-profile-btn"
+              class="friends-profile-upload-btn"
+              type="button"
+              disabled={disableUpload || loading || !configured}
+              title={uploadTitle}
+              on:click={handleManualUpload}
+            >
+              {uploading ? 'Uploading...' : 'Upload Weekly'}
+            </button>
+          </div>
 
           <div class="friends-profile-instructions" role="note" aria-label="Instructions">
             <span class="friends-profile-instructions__title">Instructions:</span>
-            <p>Set your PIN and click Upload Weekly before sharing.</p>
-            <p>Then share roster code + PIN with your friend so they can add you. The color picker sets your roster and character name color in this tab.</p>
+            <p>Set your PIN, upload weekly, then share roster code + PIN with your friends.</p>
+            <p>When the app regains focus, weekly changes are checked and uploaded automatically.</p>
           </div>
         </section>
 
@@ -1541,10 +1523,39 @@
             {:else}
               {#each rows as row}
                 <div class="friends-list-item">
-                  <span class="friends-list-item__alias" style={`color:${row.heatmapColor};`}>{row.title}</span>
+                  <div class="friends-list-item__alias-wrap">
+                    {#if editingAliasFriendId === row.id}
+                      <input
+                        class="friends-list-item__alias-input"
+                        type="text"
+                        maxlength="32"
+                        bind:value={aliasDraft}
+                        aria-label={`Edit alias for ${row.title}`}
+                        on:keydown={(event) => {
+                          if (event.key === 'Enter') {
+                            event.preventDefault();
+                            saveEditingFriendAlias(row.id);
+                          } else if (event.key === 'Escape') {
+                            event.preventDefault();
+                            cancelEditingFriendAlias();
+                          }
+                        }}
+                      />
+                    {:else}
+                      <span class="friends-list-item__alias" style={`color:${row.heatmapColor};`}>{row.title}</span>
+                    {/if}
+                  </div>
                   <span class="friends-list-item__updated-at">{row.updatedAt ? `Updated at: ${formatDateTime(row.updatedAt)}` : 'Updated at: -'}</span>
                   <span class="friends-list-item__code">{row.rosterCode}</span>
                   <div class="friends-list-item__actions">
+                    {#if editingAliasFriendId === row.id}
+                      <button class="friends-list-item__alias-save" type="button" aria-label={`Save alias for ${row.title}`} on:click={() => saveEditingFriendAlias(row.id)}>Save</button>
+                      <button class="friends-list-item__alias-cancel" type="button" aria-label={`Cancel alias edit for ${row.title}`} on:click={cancelEditingFriendAlias}>Cancel</button>
+                    {:else}
+                      <button class="friends-list-item__alias-edit" type="button" aria-label={`Edit alias for ${row.title}`} on:click={() => startEditingFriendAlias(row.id)}>
+                        Alias
+                      </button>
+                    {/if}
                     <input
                       class="friends-list-item__color"
                       type="color"

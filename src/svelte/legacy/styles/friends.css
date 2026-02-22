@@ -1407,6 +1407,14 @@
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-primary) 24%, transparent), var(--shadow-xs);
 }
 
+#friends-setup-modal .friends-profile-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
 #friends-setup-modal .friends-profile-upload-btn:hover:enabled {
     transform: translateY(-1px);
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-primary) 34%, transparent), var(--shadow-sm);
@@ -1511,6 +1519,21 @@
     letter-spacing: 0.15px;
 }
 
+#friends-setup-modal .friends-list-item__alias-wrap {
+    min-width: 0;
+}
+
+#friends-setup-modal .friends-list-item__alias-input {
+    width: 100%;
+    min-height: 28px;
+    padding: 0 8px;
+    border-radius: var(--radius-sm);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 26%, var(--color-border));
+    background: color-mix(in srgb, var(--color-surface-light) 78%, var(--color-bg-darker));
+    color: var(--color-text);
+    font-size: 0.75rem;
+}
+
 #friends-setup-modal .friends-list-item__code {
     color: var(--color-text-secondary);
     font-size: var(--font-xs);
@@ -1531,6 +1554,47 @@
     gap: 8px;
     justify-self: end;
     align-self: end;
+}
+
+#friends-setup-modal .friends-list-item__alias-edit {
+    min-height: 24px;
+    padding: 0 8px;
+    border-radius: var(--radius-sm);
+    border: 1px solid color-mix(in srgb, var(--color-border-light) 65%, var(--color-border));
+    background: color-mix(in srgb, var(--color-surface-light) 82%, var(--color-bg-darker));
+    color: var(--color-text-muted);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    cursor: pointer;
+}
+
+#friends-setup-modal .friends-list-item__alias-edit:hover {
+    color: var(--color-text-secondary);
+    border-color: color-mix(in srgb, var(--color-primary) 38%, var(--color-border));
+}
+
+#friends-setup-modal .friends-list-item__alias-save,
+#friends-setup-modal .friends-list-item__alias-cancel {
+    min-height: 24px;
+    padding: 0 8px;
+    border-radius: var(--radius-sm);
+    border: 1px solid color-mix(in srgb, var(--color-border-light) 65%, var(--color-border));
+    background: color-mix(in srgb, var(--color-surface-light) 82%, var(--color-bg-darker));
+    color: var(--color-text-muted);
+    font-size: 0.66rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+#friends-setup-modal .friends-list-item__alias-save:hover {
+    color: var(--color-text-secondary);
+    border-color: color-mix(in srgb, var(--color-success) 44%, var(--color-border));
+}
+
+#friends-setup-modal .friends-list-item__alias-cancel:hover {
+    color: var(--color-text-secondary);
+    border-color: color-mix(in srgb, var(--color-danger) 40%, var(--color-border));
 }
 
 #friends-setup-modal .friends-list-item__remove {
@@ -1646,22 +1710,22 @@
 }
 
 #friends-setup-modal .friends-profile-instructions {
-    margin-top: 10px;
-    padding: 10px 12px;
+    margin-top: 2px;
+    padding: 6px 8px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 10px;
     background: rgba(12, 19, 30, 0.6);
     color: var(--color-text-muted);
-    font-size: 0.74rem;
-    line-height: 1.35;
+    font-size: 0.64rem;
+    line-height: 1.18;
 }
 
 #friends-setup-modal .friends-profile-instructions__title {
     display: block;
-    margin-bottom: 4px;
-    color: var(--color-text);
+    margin-bottom: 2px;
+    color: var(--color-text-muted);
     font-weight: 600;
-    font-size: 0.72rem;
+    font-size: 0.6rem;
     letter-spacing: 0.06em;
     text-transform: uppercase;
 }
@@ -1671,5 +1735,12 @@
 }
 
 #friends-setup-modal .friends-profile-instructions p + p {
-    margin-top: 3px;
+    margin-top: 2px;
+}
+
+@media (max-width: 760px) {
+    #friends-setup-modal .friends-profile-actions {
+        align-items: flex-start;
+        flex-direction: column;
+    }
 }
