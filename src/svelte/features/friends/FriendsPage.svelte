@@ -483,12 +483,13 @@
     safeCharacters.forEach((character) => {
       raidIndices.forEach((raidIndex) => {
         const visible = ((character?.visibleMask || 0) & (1 << raidIndex)) !== 0;
-        if (!visible) {
+        const isDone = ((character?.raidMask || 0) & (1 << raidIndex)) !== 0;
+
+        if (!visible && !isDone) {
           return;
         }
 
         total += 1;
-        const isDone = ((character?.raidMask || 0) & (1 << raidIndex)) !== 0;
         if (isDone) {
           done += 1;
         }
@@ -592,11 +593,15 @@
     }
 
     const visible = ((character?.visibleMask || 0) & (1 << raidIndex)) !== 0;
+    const done = ((character?.raidMask || 0) & (1 << raidIndex)) !== 0;
+
     if (!visible) {
+      if (done) {
+        return { className: 'state-hidden-done', text: '✓', label: 'Completed (hidden from gold)' };
+      }
       return { className: 'state-none', text: '-', label: 'Hidden for this character' };
     }
 
-    const done = ((character?.raidMask || 0) & (1 << raidIndex)) !== 0;
     if (done) {
       return { className: 'state-self-done', text: '✓', label: 'Completed' };
     }
@@ -608,13 +613,14 @@
     const safeChars = Array.isArray(characters) ? characters : [];
     const visibleCount = safeChars.reduce((count, character) => {
       const visible = ((character?.visibleMask || 0) & (1 << raidIndex)) !== 0;
-      return count + (visible ? 1 : 0);
+      const done = ((character?.raidMask || 0) & (1 << raidIndex)) !== 0;
+      return count + ((visible || done) ? 1 : 0);
     }, 0);
 
     const doneCount = safeChars.reduce((count, character) => {
       const visible = ((character?.visibleMask || 0) & (1 << raidIndex)) !== 0;
-      if (!visible) return count;
       const done = ((character?.raidMask || 0) & (1 << raidIndex)) !== 0;
+      if (!visible && !done) return count;
       return count + (done ? 1 : 0);
     }, 0);
 
@@ -1381,9 +1387,14 @@
                           {@const hasVisibleMask = character.visibleMask !== null && character.visibleMask !== undefined}
                           {@const visible = hasVisibleMask ? (((character.visibleMask || 0) & (1 << raidIndex)) !== 0) : true}
                           {@const ignored = !visible}
-                          {@const done = !ignored && (((character.raidMask || 0) & (1 << raidIndex)) !== 0)}
-                          <td class={`friends-raid-cell${ignored ? ' is-ignored' : (done ? ' is-done' : ' is-pending')}`}>
-                            {ignored ? '-' : (done ? '✓' : '●')}
+                          {@const doneRaw = (((character.raidMask || 0) & (1 << raidIndex)) !== 0)}
+                          {@const hiddenDone = ignored && doneRaw}
+                          {@const done = !ignored && doneRaw}
+                          <td
+                            class={`friends-raid-cell${hiddenDone ? ' is-hidden-done' : (ignored ? ' is-ignored' : (done ? ' is-done' : ' is-pending'))}`}
+                            title={hiddenDone ? 'Completed (hidden from gold)' : (ignored ? 'Hidden for this character' : (done ? 'Completed' : 'Available and not completed'))}
+                          >
+                            {hiddenDone ? '✓' : (ignored ? '-' : (done ? '✓' : '●'))}
                           </td>
                         {/each}
                       </tr>
@@ -1600,6 +1611,7 @@
               <div class="friends-heatmap-legend">
                 <span class="friends-heatmap-legend__item state-self-done">✓ Completed</span>
                 <span class="friends-heatmap-legend__item state-self-available">● Available</span>
+                <span class="friends-heatmap-legend__item state-hidden-done">✓ Hidden + completed</span>
                 <span class="friends-heatmap-legend__item state-none">- Hidden</span>
                 <span class="friends-heatmap-legend__item state-progress">0/x Progress</span>
               </div>

@@ -200,7 +200,7 @@ export class FriendsRosterService {
             hiddenMask |= (1 << index);
           }
 
-          if (bossData?.cleared && !bossData?.hidden && isVisibleInColumns && isEligible) {
+          if (bossData?.cleared && isVisibleInColumns && isEligible) {
             raidMask |= (1 << index);
           }
         });

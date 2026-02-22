@@ -97,6 +97,13 @@
     color: var(--color-text-muted);
 }
 
+.friends-heatmap-legend__item.state-hidden-done {
+    color: color-mix(in srgb, var(--color-success) 40%, var(--color-text-muted));
+    border-color: color-mix(in srgb, var(--color-success) 18%, var(--color-border));
+    background: color-mix(in srgb, var(--color-success) 7%, var(--color-surface));
+    opacity: 0.62;
+}
+
 .friends-heatmap-legend__item.state-progress {
     color: color-mix(in srgb, var(--color-primary) 88%, #fff);
     border-color: color-mix(in srgb, var(--color-primary) 44%, var(--color-border));
@@ -254,6 +261,11 @@
 .friends-heatmap-cell.state-self-available {
     background: #0a0a0a;
     color: var(--color-text);
+}
+
+.friends-heatmap-cell.state-hidden-done {
+    background: color-mix(in srgb, var(--color-success) 8%, var(--color-bg-darker));
+    color: color-mix(in srgb, var(--color-success) 38%, var(--color-text-muted));
 }
 
 .friends-heatmap-table .is-hover-row {
@@ -489,6 +501,12 @@
 .friends-raid-cell.is-ignored {
     color: var(--color-text-muted);
     background: var(--color-surface);
+}
+
+.friends-raid-cell.is-hidden-done {
+    color: color-mix(in srgb, var(--color-success) 40%, var(--color-text-muted));
+    background: color-mix(in srgb, var(--color-success) 8%, var(--color-surface));
+    opacity: 0.62;
 }
 
 .friends-row-empty,
