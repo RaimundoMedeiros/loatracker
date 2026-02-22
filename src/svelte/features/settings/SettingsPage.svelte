@@ -9,17 +9,20 @@
 
   type SettingsState = SettingsPayload;
 
-  type ConfirmAction = 'clear-db' | 'reset-app' | null;
+  type ConfirmAction = 'reset-app' | null;
   export let onRequestClose: (() => void) | undefined = undefined;
 
   const ui = new UIHelper();
   const api: AppApi = window.api;
+  const PERSISTENT_ACCESS_PENDING_KEY = 'wtl:persistent-access-pending-grant';
 
   let loading = true;
   let dbDragDepth = 0;
   let dropZoneMessage = 'Drag and drop encounters.db here to load it (persistent when allowed).';
   let dropSuccess = false;
   let dropError = false;
+  let showReloadPageHighlight = false;
+  let showGrantPersistentAccessHighlight = false;
   let dbPermission = 'unknown';
   let dbLoadedFile = 'Not loaded';
   let dbLastLoaded = 'Never';
@@ -94,6 +97,26 @@
     await refreshPermissionStatus();
   }
 
+  function setPendingGrantPersistentAccess(value: boolean) {
+    try {
+      if (value) {
+        sessionStorage.setItem(PERSISTENT_ACCESS_PENDING_KEY, '1');
+      } else {
+        sessionStorage.removeItem(PERSISTENT_ACCESS_PENDING_KEY);
+      }
+    } catch {
+      // noop: sessionStorage may be blocked in private/browser-limited contexts
+    }
+  }
+
+  function hasPendingGrantPersistentAccess() {
+    try {
+      return sessionStorage.getItem(PERSISTENT_ACCESS_PENDING_KEY) === '1';
+    } catch {
+      return false;
+    }
+  }
+
   async function initialize() {
     loading = true;
     try {
@@ -109,6 +132,18 @@
       }
 
       await refreshDatabaseStatus();
+
+      const waitingGrantStep = hasPendingGrantPersistentAccess();
+      if (waitingGrantStep) {
+        showReloadPageHighlight = false;
+        const isGrantedNow = String(dbPermission || '').toLowerCase().startsWith('granted');
+        showGrantPersistentAccessHighlight = !isGrantedNow;
+        if (isGrantedNow) {
+          setPendingGrantPersistentAccess(false);
+        }
+      } else {
+        showGrantPersistentAccessHighlight = false;
+      }
     } finally {
       loading = false;
     }
@@ -175,8 +210,12 @@
     loadedName: string;
     dropMessage: string;
     toastMessage?: string;
+    showReloadHighlight?: boolean;
   }) {
     await persistLoadedDatabaseName(options.loadedName);
+    if (options.showReloadHighlight) {
+      showReloadPageHighlight = true;
+    }
     updateDropZoneStatus(options.dropMessage, true, false);
     if (options.toastMessage) {
       showToast(options.toastMessage, TOAST_TYPES.SUCCESS);
@@ -185,22 +224,26 @@
   }
 
   async function importDatabaseHandle(handle: FileSystemFileHandle) {
+    const isFirstDatabaseLoad = !settings.dbPath?.trim();
     await api.importDatabaseHandle(handle);
     const loadedName = handle?.name || 'encounters.db';
     await markDatabaseLoaded({
       loadedName,
       dropMessage: `Loaded: ${loadedName} (persistent when allowed).`,
       toastMessage: 'Database loaded with persistent access (when allowed).',
+      showReloadHighlight: isFirstDatabaseLoad,
     });
   }
 
   async function importDatabaseFile(file: File) {
+    const isFirstDatabaseLoad = !settings.dbPath?.trim();
     await api.importDatabaseFile(file);
     const loadedName = file.name || 'encounters.db';
     await markDatabaseLoaded({
       loadedName,
       dropMessage: `Loaded: ${loadedName} (session only).`,
       toastMessage: 'Database loaded for this session only.',
+      showReloadHighlight: isFirstDatabaseLoad,
     });
   }
 
@@ -268,13 +311,23 @@
     dbDragDepth = Math.max(0, dbDragDepth - 1);
   }
 
-  async function recheckPermission() {
+  async function requestPersistentAccess() {
     const result = await api.requestDatabasePermission();
-    if (result?.ok) showToast('Database reconnected.', TOAST_TYPES.SUCCESS);
+    if (result?.ok) {
+      showToast('Persistent access granted.', TOAST_TYPES.SUCCESS);
+      showGrantPersistentAccessHighlight = false;
+      setPendingGrantPersistentAccess(false);
+    }
     else if (result?.reason === 'permission-denied') showToast('Permission denied by the browser.', TOAST_TYPES.ERROR);
     else if (result?.reason === 'no-handle') showToast('No remembered database file. Drop encounters.db first.', TOAST_TYPES.INFO);
     else showToast('Could not reconnect the database.', TOAST_TYPES.ERROR);
     await refreshDatabaseStatus();
+  }
+
+  function reloadPageNow() {
+    showReloadPageHighlight = false;
+    setPendingGrantPersistentAccess(true);
+    window.location.reload();
   }
 
   async function reloadDbNow() {
@@ -293,25 +346,6 @@
       dropMessage: `Loaded: ${loadedName} (reloaded now).`,
       toastMessage: 'Database reloaded.',
     });
-  }
-
-  function clearCurrentDb() {
-    openConfirmDialog({
-      action: 'clear-db',
-      title: 'Clear current database?',
-      message: 'This removes the current database link and loaded file reference from this browser.',
-    });
-  }
-
-  async function executeClearCurrentDb() {
-    await api.clearCurrentDatabase?.();
-    settings.dbPath = '';
-    settings.dbLastLoadedAt = null;
-    await api.saveSettings(settings);
-    emitSettingsChanged();
-    updateDropZoneStatus('Drag and drop encounters.db here to load it (persistent when allowed).', false, false);
-    showToast('Current database cleared.', TOAST_TYPES.SUCCESS);
-    await refreshDatabaseStatus();
   }
 
   function resetAppData() {
@@ -336,9 +370,7 @@
 
     confirmBusy = true;
     const actionResult = await withAsyncError(async () => {
-      if (confirmAction === 'clear-db') {
-        await executeClearCurrentDb();
-      } else if (confirmAction === 'reset-app') {
+      if (confirmAction === 'reset-app') {
         await executeResetAppData();
       }
       closeConfirmDialog();
@@ -403,12 +435,12 @@
     </div>
 
     <div class="db-action-buttons">
-      <button id="recheck-db-permission-btn" type="button" on:click={recheckPermission} disabled={loading}>Reconnect database</button>
+      <button id="grant-db-persistent-access-btn" type="button" class:grant-persistent-access-highlight={showGrantPersistentAccessHighlight} on:click={requestPersistentAccess} disabled={loading}>Grant persistent access</button>
       <button id="reload-db-now-btn" type="button" on:click={reloadDbNow} disabled={loading}>Reload database now</button>
-      <button id="clear-current-db-btn" type="button" on:click={clearCurrentDb} disabled={loading}>Clear current database</button>
+      <button id="reload-page-now-btn" type="button" class:reload-page-now-highlight={showReloadPageHighlight} on:click={reloadPageNow} disabled={loading}>Reload page now</button>
     </div>
 
-    <p class="db-permission-help">Tip: after the first load, reload once to activate persistent access. If access is denied later, use <strong>Reconnect database</strong> and accept the browser prompt.</p>
+    <p class="db-permission-help">Tip: after the first load, click <strong>Reload page now</strong>. If permission is still blocked after reload, click <strong>Grant persistent access</strong> and accept the browser prompt.</p>
   </div>
 
   <div class="settings-bottom-grid">

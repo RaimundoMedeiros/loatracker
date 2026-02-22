@@ -1095,6 +1095,25 @@
    box-shadow: var(--shadow-sm);
 }
 
+#settings-modal #settings-tab .db-action-buttons #reload-page-now-btn.reload-page-now-highlight,
+#settings-modal #settings-tab .db-action-buttons #grant-db-persistent-access-btn.grant-persistent-access-highlight {
+   border-color: color-mix(in srgb, var(--color-warning) 65%, var(--color-border));
+   box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-warning) 38%, transparent), var(--shadow-sm);
+   animation: settingsReloadPulse 1.35s ease-in-out infinite;
+}
+
+@keyframes settingsReloadPulse {
+   0%,
+   100% {
+      transform: translateY(0);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-warning) 35%, transparent), var(--shadow-sm);
+   }
+   50% {
+      transform: translateY(-1px);
+      box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-warning) 48%, transparent), var(--shadow-md);
+   }
+}
+
 #settings-modal #settings-tab .db-status-row {
    border-color: color-mix(in srgb, var(--color-border-light) 54%, var(--color-border));
 }

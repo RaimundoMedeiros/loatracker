@@ -1311,13 +1311,18 @@
     return soloDisabled ? ['Normal'] : ['Solo', 'Normal'];
   }
 
+  function highlightSettingsButtonCta() {
+    document.dispatchEvent(new CustomEvent('wtl-highlight-settings-cta'));
+  }
+
   async function ensureDatabaseReady(silent = false) {
     let hasDb = await api.checkDatabaseExists?.();
     if (hasDb) {
       return true;
     }
 
-    if (!silent && api.requestDatabasePermission) {
+    const hasConfiguredDbPath = Boolean(String(settings?.dbPath || '').trim());
+    if (!silent && hasConfiguredDbPath && api.requestDatabasePermission) {
       const permResult = await api.requestDatabasePermission();
 
       if (permResult?.ok) {
@@ -1331,6 +1336,7 @@
 
     if (!silent) {
       showToast('No database loaded. Set encounters.db in Settings first.', TOAST_TYPES.ERROR);
+      highlightSettingsButtonCta();
     }
 
     return false;

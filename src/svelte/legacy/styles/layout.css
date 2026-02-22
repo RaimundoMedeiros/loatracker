@@ -126,6 +126,45 @@
     }
 }
 
+@media (max-width: 768px) {
+    .support-donate-wrapper {
+        position: fixed;
+        top: auto;
+        bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom, 0px));
+        left: auto;
+        right: var(--spacing-md);
+        transform: none;
+        z-index: 1800;
+    }
+
+    .support-donate-toggle {
+        width: 44px;
+        height: 44px;
+        min-height: 44px;
+        padding: 0;
+        gap: 0;
+        border-radius: var(--radius-full);
+    }
+
+    .support-donate-toggle span {
+        display: none;
+    }
+
+    .support-kofi-icon {
+        width: 22px;
+        height: 22px;
+    }
+
+    .support-donate-menu {
+        top: auto;
+        bottom: calc(100% + 8px);
+        left: auto;
+        right: 0;
+        transform: none;
+        width: min(88vw, 220px);
+    }
+}
+
 .header-icon-btn {
     background-color: var(--color-surface);
     color: var(--color-text);
@@ -164,6 +203,26 @@
     width: 20px;
     height: 20px;
     display: block;
+}
+
+#settings-btn.settings-cta-highlight {
+    background-color: var(--color-warning);
+    color: var(--color-bg-dark);
+    border-color: color-mix(in srgb, var(--color-warning) 70%, var(--color-border));
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-warning) 38%, transparent), var(--shadow-sm);
+    animation: settingsHeaderCtaPulse 1.3s ease-in-out infinite;
+}
+
+@keyframes settingsHeaderCtaPulse {
+    0%,
+    100% {
+        transform: translateY(0);
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-warning) 34%, transparent), var(--shadow-sm);
+    }
+    50% {
+        transform: translateY(-1px);
+        box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-warning) 48%, transparent), var(--shadow-md);
+    }
 }
 
 .tabs {

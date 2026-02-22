@@ -30,6 +30,7 @@
   let appFocusAutoRaidLastRunAt = 0;
   let appFocusAutoUploadInFlight = false;
   let appFocusAutoUploadLastRunAt = 0;
+  let inputAutocompleteObserver: MutationObserver | null = null;
   let lastSetupCheckedRosterId = '';
   let unsubscribeRosterChanges: (() => void) | null = null;
   let donateButton: { destroy?: () => void } | null = null;
@@ -49,6 +50,7 @@
   let modalFocusObserver: MutationObserver | null = null;
   let modalFocusRaf = 0;
   let lastTrackedModal: HTMLElement | null = null;
+  let highlightSettingsButton = false;
   let weeklyPagePromise: Promise<any> | null = null;
   let rosterPagePromise: Promise<any> | null = null;
   let friendsPagePromise: Promise<any> | null = null;
@@ -102,6 +104,9 @@
     if (!isModalRoute(next)) {
       previousMainRoute = asMainRoute(next);
     }
+    if (next === 'settings') {
+      highlightSettingsButton = false;
+    }
     currentRoute = next;
   }
 
@@ -109,7 +114,14 @@
     if (!isModalRoute(route)) {
       previousMainRoute = asMainRoute(route);
     }
+    if (route === 'settings') {
+      highlightSettingsButton = false;
+    }
     window.location.hash = route;
+  }
+
+  function onHighlightSettingsCta() {
+    highlightSettingsButton = true;
   }
 
   function closeModal() {
@@ -414,6 +426,62 @@
     }
   }
 
+  function disableBrowserInputSuggestions(root: ParentNode = document) {
+    const elements = Array.from(root.querySelectorAll('input, textarea')) as Array<HTMLInputElement | HTMLTextAreaElement>;
+    elements.forEach((element) => {
+      if ((element as HTMLElement).dataset.allowAutocomplete === 'true') {
+        return;
+      }
+
+      if (element instanceof HTMLInputElement) {
+        const type = String(element.type || '').toLowerCase();
+        if (type === 'password') {
+          element.setAttribute('autocomplete', 'new-password');
+        } else {
+          element.setAttribute('autocomplete', 'off');
+        }
+      } else {
+        element.setAttribute('autocomplete', 'off');
+      }
+
+      element.setAttribute('autocorrect', 'off');
+      element.setAttribute('autocapitalize', 'none');
+      element.setAttribute('spellcheck', 'false');
+    });
+  }
+
+  function startInputAutocompleteObserver() {
+    if (inputAutocompleteObserver) {
+      inputAutocompleteObserver.disconnect();
+    }
+
+    inputAutocompleteObserver = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.type !== 'childList') {
+          continue;
+        }
+
+        mutation.addedNodes.forEach((node) => {
+          if (!(node instanceof HTMLElement)) {
+            return;
+          }
+
+          if (node.matches('input, textarea')) {
+            disableBrowserInputSuggestions(node.parentElement || document);
+            return;
+          }
+
+          disableBrowserInputSuggestions(node);
+        });
+      }
+    });
+
+    inputAutocompleteObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+  }
+
   function isRosterPayloadEmpty(payload: RosterPayload | null | undefined) {
     const rosterData = payload?.roster;
     if (!rosterData || typeof rosterData !== 'object') {
@@ -626,6 +694,9 @@
     donateButton = mountSupportDonateButton();
     window.addEventListener('wtl-close-modal', onWindowCloseModalRequest as EventListener);
     document.addEventListener('visibilitychange', onAppVisibilityChange);
+    document.addEventListener('wtl-highlight-settings-cta', onHighlightSettingsCta as EventListener);
+    disableBrowserInputSuggestions();
+    startInputAutocompleteObserver();
     startModalFocusObserver();
     void runFirstTimeSetupCheck();
 
@@ -645,6 +716,7 @@
     donateButton = null;
     window.removeEventListener('wtl-close-modal', onWindowCloseModalRequest as EventListener);
     document.removeEventListener('visibilitychange', onAppVisibilityChange);
+    document.removeEventListener('wtl-highlight-settings-cta', onHighlightSettingsCta as EventListener);
 
     if (modalFocusObserver) {
       modalFocusObserver.disconnect();
@@ -654,6 +726,11 @@
     if (modalFocusRaf) {
       cancelAnimationFrame(modalFocusRaf);
       modalFocusRaf = 0;
+    }
+
+    if (inputAutocompleteObserver) {
+      inputAutocompleteObserver.disconnect();
+      inputAutocompleteObserver = null;
     }
 
     unsubscribeRosterChanges?.();
@@ -714,7 +791,7 @@
           <path d="M16.5 2.5h-1.4v1.8h-1.8v1.4h1.8v1.8h1.4V5.7h1.8V4.3h-1.8V2.5Zm-6.7 6.9h1.8V7.6h1.4v1.8h1.8v1.4h-1.8v1.8h-1.4v-1.8H9.8V9.4Z" fill="currentColor"/>
         </svg>
       </button>
-      <button id="settings-btn" class="header-icon-btn" aria-label="Settings" title="Settings" on:click={() => goTo('settings')}>
+      <button id="settings-btn" class="header-icon-btn" class:settings-cta-highlight={highlightSettingsButton} aria-label="Settings" title="Settings" on:click={() => goTo('settings')}>
         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <path d="M19.14 12.94c.04-.31.06-.62.06-.94s-.02-.63-.07-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.03 7.03 0 0 0-1.63-.95l-.36-2.54A.5.5 0 0 0 13.88 2h-3.76a.5.5 0 0 0-.5.43l-.36 2.54c-.58.23-1.13.55-1.63.95l-2.39-.96a.5.5 0 0 0-.6.22L2.72 8.5a.5.5 0 0 0 .12.64l2.03 1.58c-.05.31-.07.63-.07.94s.02.63.07.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .6.22l2.39-.96c.5.4 1.05.72 1.63.95l.36 2.54a.5.5 0 0 0 .5.43h3.76a.5.5 0 0 0 .5-.43l.36-2.54c.58-.23 1.13-.55 1.63-.95l2.39.96a.5.5 0 0 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z" fill="currentColor"/>
         </svg>
