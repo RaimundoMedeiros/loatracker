@@ -333,7 +333,7 @@ const CLASS_ALIASES: Record<string, string> = {
   'arcana': 'Arcanist',
   'arcana (arcanist)': 'Arcanist',
   'scouter': 'Machinist',
-  'lançaira': 'Glaivier',
+  'lancaira': 'Glaivier',
   'lance master': 'Glaivier',
   'lancemaster': 'Glaivier',
   'battle master': 'Wardancer',

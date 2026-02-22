@@ -19,6 +19,7 @@
   import { FriendsRosterService } from '../friends/services/FriendsRosterService';
   import { normalizeFriendsConfig } from '../friends/config';
   import type { FriendsRosterConfig } from '../friends/types';
+  import { runAutoRaidFocusUpdate } from '../../services/AutoRaidFocusUpdateService';
 
   type Difficulty = 'Solo' | 'Normal' | 'Hard';
 
@@ -517,24 +518,28 @@
         return;
       }
 
-      for (const rosterId of targetRosterIds) {
-        try {
-          const updatedCells = await loadFromDatabase({
+      await runAutoRaidFocusUpdate(api, ((settings || {}) as Record<string, unknown>), {
+        targetRosterIds,
+        updateRoster: async ({ rosterId }) => {
+          return loadFromDatabase({
             silent: true,
             overlay: false,
             rosterId,
           });
+        },
+        onRosterSuccess: (rosterId, updatedCells) => {
           debugWeekly('auto-raid-focus:update-roster-success', {
             rosterId,
             updatedCells,
           });
-        } catch (error) {
+        },
+        onRosterFailed: (rosterId, error) => {
           debugWeekly('auto-raid-focus:update-roster-failed', {
             rosterId,
             error: error instanceof Error ? error.message : String(error),
           });
-        }
-      }
+        },
+      });
 
       debugWeekly('auto-raid-focus:update-finished', {
         targetRosterIds,
@@ -641,6 +646,15 @@
 
       await api.saveSettings?.(nextSettings);
       settings = nextSettings;
+
+      if (result.skipped) {
+        debugWeekly('friends:auto-upload-focus-skip-server', {
+          activeRosterCode,
+          uploaded: result.uploaded,
+        });
+      } else {
+        showToast(`Focus upload completed (${result.uploaded} characters).`, TOAST_TYPES.SUCCESS);
+      }
 
       debugWeekly('friends:auto-upload-focus-success', {
         activeRosterCode,
@@ -2082,6 +2096,10 @@
             TOAST_TYPES.WARNING
           );
         }
+      }
+
+      if (!silent && updatedCells > 0 && targetRosterId === activeRosterId) {
+        await tryAutoUploadOnFocusChange();
       }
 
       return updatedCells;

@@ -249,7 +249,7 @@
         },
         showToast: false,
       });
-      message = `Erro ao inicializar Friends: ${error?.message || error}`;
+      message = `Failed to initialize Friends: ${error?.message || error}`;
     } finally {
       loading = false;
     }
@@ -964,7 +964,7 @@
 
     const cooldownMs = getUploadCooldownRemainingMs();
     if (cooldownMs > 0) {
-      showToast(`Aguarde ${Math.ceil(cooldownMs / 1000)}s para enviar novamente.`, TOAST_TYPES.INFO);
+      showToast(`Please wait ${Math.ceil(cooldownMs / 1000)}s before uploading again.`, TOAST_TYPES.INFO);
       return;
     }
 
@@ -1174,7 +1174,7 @@
     if (showToastFeedback) {
       const remainingMs = getRefreshCooldownRemainingMs();
       if (remainingMs > 0) {
-        showToast(`Aguarde ${Math.ceil(remainingMs / 1000)}s para atualizar novamente.`, TOAST_TYPES.INFO);
+        showToast(`Please wait ${Math.ceil(remainingMs / 1000)}s before refreshing again.`, TOAST_TYPES.INFO);
         return;
       }
     }
@@ -1309,7 +1309,7 @@
           disabled={disableRefresh || loading || !configured}
           title={refreshTitle}
         >
-          <span class="btn-label">{refreshing ? 'Atualizando...' : 'Refresh Friends'}</span>
+          <span class="btn-label">{refreshing ? 'Refreshing...' : 'Refresh Friends'}</span>
         </button>
 
         <button
@@ -1328,7 +1328,7 @@
 
   <div class="friends-grid" aria-live="polite">
     {#if loading}
-      <p class="friends-empty">Carregando Friends...</p>
+      <p class="friends-empty">Loading Friends...</p>
     {:else}
       {#if message}
         <p class="friends-empty">{message}</p>

@@ -2,8 +2,15 @@
   import { onDestroy, onMount } from 'svelte';
   import { mountSupportDonateButton } from './legacy/components/SupportDonateButton.js';
   import type { AppApi, RosterPayload } from '../types/app-api';
+  import { TOAST_TYPES } from './legacy/config/constants.js';
+  import { UIHelper } from './utils/uiHelper';
   import { reportError } from './utils/errorHandler';
   import { ERROR_CODES } from './utils/errorCodes';
+  import { runAutoRaidFocusUpdate } from './services/AutoRaidFocusUpdateService';
+  import { FriendsStateService } from './services/FriendsStateService';
+  import { FriendsRosterService } from './features/friends/services/FriendsRosterService';
+  import { normalizeFriendsConfig } from './features/friends/config';
+  import type { FriendsRosterConfig } from './features/friends/types';
   import RosterSwitcher from './components/RosterSwitcher.svelte';
   import { rosterChangeVersion } from './stores/rosterSync';
 
@@ -15,10 +22,22 @@
   type MainRoute = (typeof MAIN_ROUTES)[number];
   const api: AppApi = window.api;
   const ROSTER_META_KEYS = new Set(['dailyData']);
+  const APP_FOCUS_AUTO_RAID_DEDUP_MS = 1200;
+  const APP_FOCUS_AUTO_UPLOAD_DEDUP_MS = 1200;
+  const MIN_FRIENDS_PIN_LENGTH = 4;
   let setupCheckInFlight = false;
+  let appFocusAutoRaidInFlight = false;
+  let appFocusAutoRaidLastRunAt = 0;
+  let appFocusAutoUploadInFlight = false;
+  let appFocusAutoUploadLastRunAt = 0;
   let lastSetupCheckedRosterId = '';
   let unsubscribeRosterChanges: (() => void) | null = null;
   let donateButton: { destroy?: () => void } | null = null;
+  const ui = new UIHelper();
+
+  function showToast(message: string, type = TOAST_TYPES.INFO) {
+    ui.showToast(message, type);
+  }
 
   function normalizeRoute(input: string): AppRoute {
     const value = input.replace(/^#\/?/, '').trim().toLowerCase();
@@ -452,9 +471,161 @@
     }
   }
 
+  function resolveSelfPinForRoster(config: FriendsRosterConfig, rosterId: string) {
+    const safeRosterId = String(rosterId || '').trim();
+    if (!safeRosterId) return '';
+
+    const ownFriendEntry = (config.friends || []).find((friend) => String(friend?.rosterCode || '').trim() === safeRosterId);
+    if (ownFriendEntry?.pin) {
+      return String(ownFriendEntry.pin || '').trim();
+    }
+
+    const byRoster = config.selfPinsByRoster || {};
+    return String(byRoster[safeRosterId] || '').trim();
+  }
+
+  async function tryAutoRaidUpdateOnAppFocus(settingsNow: Record<string, unknown>) {
+    if (appFocusAutoRaidInFlight) {
+      return;
+    }
+
+    const now = Date.now();
+    if ((now - appFocusAutoRaidLastRunAt) < APP_FOCUS_AUTO_RAID_DEDUP_MS) {
+      return;
+    }
+
+    appFocusAutoRaidInFlight = true;
+    appFocusAutoRaidLastRunAt = now;
+
+    try {
+      await runAutoRaidFocusUpdate(api, settingsNow);
+    } catch (error) {
+      void api.logDebug?.('friends:auto-raid-focus-update-failed', {
+        message: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      appFocusAutoRaidInFlight = false;
+    }
+  }
+
+  async function tryAutoUploadOnAppFocus() {
+    if (appFocusAutoUploadInFlight) {
+      return;
+    }
+
+    const now = Date.now();
+    if ((now - appFocusAutoUploadLastRunAt) < APP_FOCUS_AUTO_UPLOAD_DEDUP_MS) {
+      return;
+    }
+
+    appFocusAutoUploadInFlight = true;
+    appFocusAutoUploadLastRunAt = now;
+
+    try {
+      const loadedSettings = (await api.loadSettings?.()) as Record<string, unknown> | null;
+      const settingsNow = (loadedSettings || {}) as Record<string, unknown>;
+      const friendsConfig = normalizeFriendsConfig(settingsNow.friendsRoster);
+
+      await tryAutoRaidUpdateOnAppFocus(settingsNow);
+
+      const friendsState = new FriendsStateService(api);
+      await friendsState.initialize();
+
+      const friendsService = new FriendsRosterService(
+        friendsState.toWeeklyTrackerAdapter(),
+        friendsState.toRosterManagerAdapter(),
+        friendsState.toStateAdapter(),
+      );
+
+      if (!friendsService.isConfigured()) {
+        return;
+      }
+
+      const activeRosterCode = String(friendsService.getSelfRosterCode() || '').trim();
+      if (!activeRosterCode) {
+        return;
+      }
+
+      const pin = resolveSelfPinForRoster(friendsConfig, activeRosterCode);
+      if (pin.length < MIN_FRIENDS_PIN_LENGTH) {
+        void api.logDebug?.('friends:auto-upload-focus-skip-pin-missing', {
+          activeRosterCode,
+          pinLength: pin.length,
+        });
+        return;
+      }
+
+      const snapshot = friendsService.buildSelfSnapshot();
+      const pinHash = await friendsService.hashPin(pin);
+      const fingerprint = friendsService.buildSyncFingerprint(snapshot, pinHash);
+      const lastFingerprint = friendsConfig.lastUploadFingerprintByRoster?.[activeRosterCode];
+
+      if (lastFingerprint && lastFingerprint === fingerprint) {
+        void api.logDebug?.('friends:auto-upload-focus-skip-no-changes', { activeRosterCode });
+        return;
+      }
+
+      const result = await friendsService.uploadSelfWeekly(pin);
+
+      const nextSettings = {
+        ...settingsNow,
+        friendsRoster: {
+          ...friendsConfig,
+          lastUploadFingerprintByRoster: {
+            ...(friendsConfig.lastUploadFingerprintByRoster || {}),
+            [activeRosterCode]: result.fingerprint,
+          },
+        },
+      };
+
+      await api.saveSettings?.(nextSettings as any);
+
+      if (result.skipped) {
+        void api.logDebug?.('friends:auto-upload-focus-skip-server', {
+          activeRosterCode,
+          uploaded: result.uploaded,
+        });
+      } else {
+        showToast(`Focus upload completed (${result.uploaded} characters).`, TOAST_TYPES.SUCCESS);
+      }
+    } catch (error) {
+      void reportError(error, {
+        code: ERROR_CODES.FRIENDS.AUTO_UPLOAD_FAILED,
+        severity: 'warning',
+        context: {
+          phase: 'tryAutoUploadOnAppFocus',
+          action: 'auto-upload-on-app-focus',
+          route: currentRoute,
+          activeMainRoute,
+        },
+        showToast: false,
+      });
+      void api.logDebug?.('friends:auto-upload-focus-failed', {
+        route: currentRoute,
+        activeMainRoute,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      appFocusAutoUploadInFlight = false;
+    }
+  }
+
+  async function onAppVisibilityChange() {
+    if (document.visibilityState !== 'visible') {
+      return;
+    }
+
+    if (activeMainRoute === 'weekly') {
+      return;
+    }
+
+    await tryAutoUploadOnAppFocus();
+  }
+
   onMount(() => {
     donateButton = mountSupportDonateButton();
     window.addEventListener('wtl-close-modal', onWindowCloseModalRequest as EventListener);
+    document.addEventListener('visibilitychange', onAppVisibilityChange);
     startModalFocusObserver();
     void runFirstTimeSetupCheck();
 
@@ -473,6 +644,7 @@
     donateButton?.destroy?.();
     donateButton = null;
     window.removeEventListener('wtl-close-modal', onWindowCloseModalRequest as EventListener);
+    document.removeEventListener('visibilitychange', onAppVisibilityChange);
 
     if (modalFocusObserver) {
       modalFocusObserver.disconnect();
@@ -565,7 +737,7 @@
   {:else}
     <section class="tab-content active" id={`${activeMainRoute}-tab`} aria-live="polite">
       <h2>Route</h2>
-      <p>Página em preparação.</p>
+      <p>Page in preparation.</p>
     </section>
   {/if}
 
