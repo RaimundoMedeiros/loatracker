@@ -64,7 +64,7 @@
   let dbGuideOpen = false;
 
   let foundCharacters: PreviewCharacter[] = [];
-  let sortField: SortField | null = null;
+  let sortField: SortField = 'ilvl';
   let sortDirection: SortDirection = 'desc';
 
   let mathiCharacterName = '';
@@ -195,9 +195,11 @@
   }
 
   async function loadPreviewCharacters(rows: Character[], successMessage: string, source: ImportSource) {
-    foundCharacters = rows
+    const normalizedCharacters = rows
       .map((item) => toPreviewCharacter(item))
       .filter((item) => Boolean(item.name));
+
+    foundCharacters = sortPreviewCharacters(normalizedCharacters, sortField, sortDirection);
 
     if (!foundCharacters.length) {
       showToast('No characters found', TOAST_TYPES.WARNING);
