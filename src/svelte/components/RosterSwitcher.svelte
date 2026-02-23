@@ -27,7 +27,7 @@
   $: sortedRosters = [...rosters].sort((left, right) => Number(left.createdAt || 0) - Number(right.createdAt || 0));
   $: activeRoster = sortedRosters.find((entry) => entry.id === activeRosterId) || null;
   $: activeCharacterCount = Number(activeRoster?.characterCount || 0);
-  $: visibleSet = getVisibleSetFor(settings, activeRosterId);
+  $: visibleRosterIds = getVisibleRosterIdsFor(settings, activeRosterId);
   $: dialogTitle = dialogMode === 'create'
     ? 'Create roster'
     : dialogMode === 'rename'
@@ -104,15 +104,15 @@
     });
   }
 
-  function getVisibleSetFor(currentSettings: SettingsPayload, currentActiveRosterId: string) {
+  function getVisibleRosterIdsFor(currentSettings: SettingsPayload, currentActiveRosterId: string) {
     const byRoster = currentSettings.visibleWeeklyRostersByRoster || {};
     const selected = Array.isArray(byRoster[currentActiveRosterId])
       ? byRoster[currentActiveRosterId]
       : [];
 
-    const safe = new Set(selected);
-    if (currentActiveRosterId) {
-      safe.add(currentActiveRosterId);
+    const safe = [...selected];
+    if (currentActiveRosterId && !safe.includes(currentActiveRosterId)) {
+      safe.push(currentActiveRosterId);
     }
     return safe;
   }
@@ -122,7 +122,7 @@
       return;
     }
 
-    const desired = Array.from(getVisibleSetFor(settings, activeRosterId));
+    const desired = getVisibleRosterIdsFor(settings, activeRosterId);
     const byRoster = settings.visibleWeeklyRostersByRoster || {};
     const currentByRoster = Array.isArray(byRoster[activeRosterId]) ? byRoster[activeRosterId] : [];
 
@@ -278,17 +278,24 @@
     }
 
     await withAsyncError(async () => {
-      const current = new Set(getVisibleSetFor(settings, activeRosterId));
+      const current = getVisibleRosterIdsFor(settings, activeRosterId);
 
       if (rosterId === activeRosterId) {
-        current.add(rosterId);
+        if (!current.includes(rosterId)) {
+          current.push(rosterId);
+        }
       } else if (checked) {
-        current.add(rosterId);
+        if (!current.includes(rosterId)) {
+          current.push(rosterId);
+        }
       } else {
-        current.delete(rosterId);
+        const index = current.indexOf(rosterId);
+        if (index >= 0) {
+          current.splice(index, 1);
+        }
       }
 
-      const nextVisible = Array.from(current);
+      const nextVisible = current;
       const byRoster = settings.visibleWeeklyRostersByRoster || {};
 
       const nextSettings: SettingsPayload = {
@@ -353,7 +360,7 @@
 <div id="roster-switcher-container">
   <div class="roster-switcher">
     <select id="roster-select" class="roster-select" aria-label="Select active roster" bind:value={activeRosterId} on:change={switchRoster}>
-      {#each sortedRosters as roster}
+      {#each sortedRosters as roster (roster.id)}
         <option value={roster.id}>{roster.name}</option>
       {/each}
     </select>
@@ -369,11 +376,11 @@
     <div class="visible-rosters-popover" class:open={visiblePopoverOpen} bind:this={popoverEl}>
       <div class="visible-rosters-popover__header">Rosters visible</div>
       <div class="visible-rosters-list">
-        {#each sortedRosters as roster}
+        {#each sortedRosters as roster (roster.id)}
           <label class="visible-rosters-item">
             <input
               type="checkbox"
-              checked={roster.id === activeRosterId || visibleSet.has(roster.id)}
+              checked={roster.id === activeRosterId || visibleRosterIds.includes(roster.id)}
               disabled={roster.id === activeRosterId}
               on:change={(event) => toggleVisibleRoster(roster.id, Boolean((event.currentTarget as HTMLInputElement).checked))}
             />

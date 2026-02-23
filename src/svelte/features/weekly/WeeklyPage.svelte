@@ -2,7 +2,7 @@
   import { onMount, onDestroy, tick } from 'svelte';
   import { UIHelper } from '../../utils/uiHelper';
   import { notifyRosterChanged, rosterChangeVersion, visibleRostersChangeVersion } from '../../stores/rosterSync';
-  import type { AppApi, SettingsPayload, RosterPayload } from '../../../types/app-api';
+  import type { AppApi, DbAccessSupport, SettingsPayload, RosterPayload } from '../../../types/app-api';
   import {
     BOSSES,
     BOSS_MAP,
@@ -54,8 +54,8 @@
   };
 
   type DailyPeriod = {
-    start: Date;
-    end: Date;
+    startMs: number;
+    endMs: number;
     startIso: string;
   };
 
@@ -111,6 +111,12 @@
   let dragOverCharacterName: string | null = null;
   let dailyResetCheckedForPeriod = '';
   let settings: SettingsPayload | null = null;
+  let dbAccessSupport: DbAccessSupport = {
+    persistentHandle: typeof window !== 'undefined' && typeof window.showOpenFilePicker === 'function',
+    nativeFilePicker: typeof window !== 'undefined' && typeof window.showOpenFilePicker === 'function',
+    handleDragDrop: typeof DataTransferItem !== 'undefined' && 'getAsFileSystemHandle' in DataTransferItem.prototype,
+    browser: 'unknown',
+  };
   let lastAutoRaidFocusTriggerAt = 0;
   let isAutoRaidFocusUpdateInFlight = false;
   let visibleRosterIds: string[] = [];
@@ -225,7 +231,6 @@
     dailyData,
     hiddenColumns
   );
-  $: debugWeeklyState('reactive-state');
 
   function debugWeekly(step: string, payload?: Record<string, unknown>) {
     if (!WEEKLY_DEBUG_ENABLED) {
@@ -432,6 +437,11 @@
         showToast: false,
       });
     }
+  }
+
+  async function refreshDbAccessSupport() {
+    if (!api.getDatabaseAccessSupport) return;
+    dbAccessSupport = await api.getDatabaseAccessSupport();
   }
 
   function handleSettingsChanged(event: Event) {
@@ -732,12 +742,15 @@
       ? (Array.isArray(byRoster[activeId]) ? byRoster[activeId] : [])
       : [];
 
-    const selectedSet = new Set((selected || []).map((id: unknown) => String(id)).filter((id: string) => rosterIds.includes(id)));
-    if (activeId) {
-      selectedSet.add(activeId);
+    const selectedList = (selected || [])
+      .map((id: unknown) => String(id))
+      .filter((id: string) => rosterIds.includes(id));
+
+    if (activeId && !selectedList.includes(activeId)) {
+      selectedList.push(activeId);
     }
 
-    return rosterIds.filter((id) => selectedSet.has(id));
+    return rosterIds.filter((id) => selectedList.includes(id));
   }
 
   function buildWeeklyCardsFromState(
@@ -963,16 +976,19 @@
 
   function getBossLookupKeys(boss: string) {
     const normalizedId = normalizeRaidBossId(boss);
-    const keys = new Set<string>();
+    const keys: string[] = [];
 
     const raw = String(boss || '').trim();
-    if (raw) keys.add(raw);
-    if (normalizedId) keys.add(normalizedId);
+    if (raw && !keys.includes(raw)) keys.push(raw);
+    if (normalizedId && !keys.includes(normalizedId)) keys.push(normalizedId);
 
     const legacySimple = BOSSES.find((item) => normalizeRaidBossId(item) === normalizedId);
-    if (legacySimple) keys.add(String(legacySimple));
+    if (legacySimple) {
+      const legacy = String(legacySimple);
+      if (!keys.includes(legacy)) keys.push(legacy);
+    }
 
-    return Array.from(keys);
+    return keys;
   }
 
   function getRaidCell(characterDataState: CharacterDataMap, characterName: string, boss: string): RaidCell {
@@ -1042,36 +1058,34 @@
     return getCurrentDailyPeriod().startIso;
   }
 
-  function getCurrentDailyPeriod(now = new Date()): DailyPeriod {
-    const start = new Date(Date.UTC(
-      now.getUTCFullYear(),
-      now.getUTCMonth(),
-      now.getUTCDate(),
+  function getCurrentDailyPeriod(nowMs = Date.now()): DailyPeriod {
+    const nowDate = new Date(nowMs);
+    const baseStartMs = Date.UTC(
+      nowDate.getUTCFullYear(),
+      nowDate.getUTCMonth(),
+      nowDate.getUTCDate(),
       DAILY_RESET.HOUR_UTC,
       0,
       0,
       0,
-    ));
+    );
 
-    if (now.getUTCHours() < DAILY_RESET.HOUR_UTC) {
-      start.setUTCDate(start.getUTCDate() - 1);
-    }
-
-    const end = new Date(start);
-    end.setUTCDate(end.getUTCDate() + 1);
+    const needsPreviousDay = nowDate.getUTCHours() < DAILY_RESET.HOUR_UTC;
+    const startMs = needsPreviousDay ? baseStartMs - (24 * 60 * 60 * 1000) : baseStartMs;
+    const endMs = startMs + (24 * 60 * 60 * 1000);
 
     return {
-      start,
-      end,
-      startIso: start.toISOString(),
+      startMs,
+      endMs,
+      startIso: new Date(startMs).toISOString(),
     };
   }
 
   function isDailyDataExpired(savedDate: unknown, period: DailyPeriod) {
     if (!savedDate) return true;
-    const parsed = new Date(String(savedDate));
-    if (Number.isNaN(parsed.getTime())) return true;
-    return parsed < period.start || parsed >= period.end;
+    const parsedMs = Date.parse(String(savedDate));
+    if (!Number.isFinite(parsedMs)) return true;
+    return parsedMs < period.startMs || parsedMs >= period.endMs;
   }
 
   function getRosterCharacterNames(rosterState: Record<string, unknown>, orderState: string[]) {
@@ -1322,7 +1336,8 @@
     }
 
     const hasConfiguredDbPath = Boolean(String(settings?.dbPath || '').trim());
-    if (!silent && hasConfiguredDbPath && api.requestDatabasePermission) {
+    const canRequestPersistentAccess = Boolean(dbAccessSupport?.persistentHandle);
+    if (!silent && hasConfiguredDbPath && canRequestPersistentAccess && api.requestDatabasePermission) {
       const permResult = await api.requestDatabasePermission();
 
       if (permResult?.ok) {
@@ -1331,7 +1346,13 @@
       } else if (permResult?.reason === 'permission-denied') {
         showToast('Browser permission denied. Grant access and try again.', TOAST_TYPES.ERROR);
         return false;
+      } else if (permResult?.reason === 'unsupported-browser') {
+        showToast('This browser supports database load only for the current session. Re-import encounters.db in Settings. For the best experience, please use Chrome, Edge, or Opera.', TOAST_TYPES.INFO);
+        return false;
       }
+    } else if (!silent && hasConfiguredDbPath && !canRequestPersistentAccess) {
+      showToast('This browser supports database load only for the current session. Re-import encounters.db in Settings. For the best experience, please use Chrome, Edge, or Opera.', TOAST_TYPES.INFO);
+      return false;
     }
 
     if (!silent) {
@@ -1398,6 +1419,7 @@
         api.loadSettings?.(),
         api.getRosterList?.(),
       ]);
+      await refreshDbAccessSupport();
       debugWeekly('loadAll:payload-loaded', {
         rosterId,
         loadedRosterKeys: Object.keys((loadedRoster?.roster || {}) as Record<string, unknown>),
@@ -1949,7 +1971,7 @@
     const targetRosterId = String(columnSettingsRosterId || activeRosterId || '').trim();
     if (loading || !targetRosterId) return;
     const nextHidden = columnEntries
-      .filter((entry) => !Boolean(draftVisibleColumns[entry.id]))
+      .filter((entry) => !draftVisibleColumns[entry.id])
       .map((entry) => entry.id);
 
     const loadedSettings = await api.loadSettings?.();
@@ -2321,11 +2343,19 @@
       if (!raid) return;
 
       const cell = getRaidCell(cardCharacterData, characterName, boss);
-      if (!cell.cleared || cell.hidden) return;
-
       const diff = cell.difficulty === 'Hard' ? 'hm' : 'nm';
-      const goldValue = Number((raid as any).gold?.[diff] || 0);
       const chestCost = Number((raid as any).chest?.[diff] || 0);
+
+      if (!cell.cleared) return;
+
+      if (cell.hidden) {
+        if (cell.chestOpened) {
+          total -= chestCost;
+        }
+        return;
+      }
+
+      const goldValue = Number((raid as any).gold?.[diff] || 0);
       total += cell.chestOpened ? (goldValue - chestCost) : goldValue;
     });
 
@@ -2433,7 +2463,7 @@
       </article>
     {/if}
 
-    {#each weeklyCards as card}
+    {#each weeklyCards as card (card.rosterId)}
       {@const cardVisibleBosses = RAID_CONFIG
         .map((raid) => String((raid as any).id || '').trim())
         .filter((bossId) => Boolean(bossId) && !card.hiddenColumns.includes(bossId))}
@@ -2514,7 +2544,7 @@
           <thead>
             <tr>
               <th>Character</th>
-              {#each cardVisibleBosses as boss}
+              {#each cardVisibleBosses as boss (boss)}
                 <th>{getRaidLabel(boss)}</th>
               {/each}
               {#if cardShowGoldColumn}
@@ -2535,7 +2565,7 @@
               </tr>
             {/if}
 
-            {#each cardVisibleCharacters as characterName}
+            {#each cardVisibleCharacters as characterName (characterName)}
               {@const character = getCharacterFromRoster(card.roster, characterName)}
               {@const classIconPath = character ? getClassIconPath(character.class) : null}
               {#if character}
@@ -2561,7 +2591,7 @@
                     </div>
                   </td>
 
-                  {#each cardVisibleBosses as boss}
+                  {#each cardVisibleBosses as boss (boss)}
                     {@const eligible = isEligibleForRoster(card.roster, characterName, boss)}
                     {@const cell = getRaidCell(card.characterData, characterName, boss)}
                     <td class="boss-cell">
@@ -2679,7 +2709,7 @@
             {#if cardVisibleCharacters.length > 0 && cardShowGoldColumn}
               <tr class="total-row">
                 <td class="total-label">Total Gold</td>
-                {#each cardVisibleBosses as _}
+                {#each cardVisibleBosses as bossId (bossId)}
                   <td class="total-empty"></td>
                 {/each}
                 <td class="gold-cell">
@@ -2708,7 +2738,7 @@
               <p class="modal-subtitle">Choose which columns appear in the Weekly Tracker (raids, gold, guardian raid, chaos dungeon). Hidden columns will not count toward gold.</p>
 
               <div id="column-settings-list" class="column-settings-list">
-                {#each columnEntries as entry}
+                {#each columnEntries as entry (entry.id)}
                   <label class="column-settings-item">
                     <input
                       type="checkbox"

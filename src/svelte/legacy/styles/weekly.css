@@ -645,6 +645,11 @@ tr:nth-child(even) {
 }
 
 .cell-hidden {
+   opacity: 1;
+}
+
+.cell.cell-hidden .difficulty-box,
+.cell.cell-hidden .checkmark {
    opacity: 0.2;
 }
 
@@ -710,6 +715,7 @@ tr:nth-child(even) {
 
 .cell.cell-hidden .eye-icon {
    color: var(--color-text);
+   opacity: 0.2;
 }
 
 .chest-icon {
@@ -730,6 +736,10 @@ tr:nth-child(even) {
 
 .chest-icon.active {
    background-image: url('/assets/icons/items/chest.webp');
+   opacity: 1;
+}
+
+.cell.cell-hidden .chest-icon.active {
    opacity: 1;
 }
 

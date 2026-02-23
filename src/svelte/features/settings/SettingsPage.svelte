@@ -5,7 +5,7 @@
   import { withAsyncError } from '../../utils/errorWrappers';
   import { ERROR_CODES } from '../../utils/errorCodes';
   import DbGuideModal from '../../components/DbGuideModal.svelte';
-  import type { AppApi, DbPermissionStatus, SettingsPayload } from '../../../types/app-api';
+  import type { AppApi, DbAccessSupport, DbPermissionStatus, SettingsPayload } from '../../../types/app-api';
 
   type SettingsState = SettingsPayload;
 
@@ -24,6 +24,12 @@
   let showReloadPageHighlight = false;
   let showGrantPersistentAccessHighlight = false;
   let dbPermission = 'unknown';
+  let dbAccessSupport: DbAccessSupport = {
+    persistentHandle: typeof window !== 'undefined' && typeof window.showOpenFilePicker === 'function',
+    nativeFilePicker: typeof window !== 'undefined' && typeof window.showOpenFilePicker === 'function',
+    handleDragDrop: typeof DataTransferItem !== 'undefined' && 'getAsFileSystemHandle' in DataTransferItem.prototype,
+    browser: 'unknown',
+  };
   let dbLoadedFile = 'Not loaded';
   let dbLastLoaded = 'Never';
   let dbGuideOpen = false;
@@ -43,6 +49,22 @@
     : dbPermission.toLowerCase().startsWith('denied')
       ? 'denied'
       : '';
+  $: persistentAccessSupported = Boolean(dbAccessSupport?.persistentHandle);
+  $: browserName = dbAccessSupport?.browser === 'firefox'
+    ? 'Firefox'
+    : dbAccessSupport?.browser === 'safari'
+      ? 'Safari'
+      : dbAccessSupport?.browser === 'brave'
+        ? 'Brave'
+        : dbAccessSupport?.browser === 'edge'
+          ? 'Edge'
+          : dbAccessSupport?.browser === 'opera'
+            ? 'Opera'
+            : dbAccessSupport?.browser === 'chrome'
+              ? 'Chrome'
+      : dbAccessSupport?.browser === 'chromium'
+        ? 'Chromium'
+        : 'this browser';
 
   let settings: SettingsState = {
     dbPath: '',
@@ -87,8 +109,17 @@
   }
 
   async function refreshPermissionStatus() {
+    if (!persistentAccessSupported) {
+      dbPermission = 'unsupported (session only)';
+      return;
+    }
     const status = await api.getDatabasePermissionStatus() as DbPermissionStatus;
     dbPermission = status?.hasHandle ? (status.permission || 'unknown') : `${status?.permission || 'unknown'} (no handle)`;
+  }
+
+  async function refreshDbAccessSupport() {
+    if (!api.getDatabaseAccessSupport) return;
+    dbAccessSupport = await api.getDatabaseAccessSupport();
   }
 
   async function refreshDatabaseStatus() {
@@ -123,8 +154,12 @@
       const loaded = await api.loadSettings();
       settings = { ...settings, ...(loaded || {}) };
 
+      await refreshDbAccessSupport();
+
       if (settings.dbPath?.trim()) {
         updateDropZoneStatus(`Loaded: ${settings.dbPath} — drag & drop encounters.db here to replace`, true, false);
+      } else if (!persistentAccessSupported) {
+        updateDropZoneStatus('Drag and drop encounters.db here to load it (session only in this browser).', false, false);
       }
 
       if (api.restorePersistedHandle) {
@@ -136,6 +171,11 @@
       const waitingGrantStep = hasPendingGrantPersistentAccess();
       if (waitingGrantStep) {
         showReloadPageHighlight = false;
+        if (!persistentAccessSupported) {
+          showGrantPersistentAccessHighlight = false;
+          setPendingGrantPersistentAccess(false);
+          return;
+        }
         const isGrantedNow = String(dbPermission || '').toLowerCase().startsWith('granted');
         showGrantPersistentAccessHighlight = !isGrantedNow;
         if (isGrantedNow) {
@@ -213,8 +253,10 @@
     showReloadHighlight?: boolean;
   }) {
     await persistLoadedDatabaseName(options.loadedName);
-    if (options.showReloadHighlight) {
+    if (options.showReloadHighlight && persistentAccessSupported) {
       showReloadPageHighlight = true;
+    } else if (!persistentAccessSupported) {
+      showReloadPageHighlight = false;
     }
     updateDropZoneStatus(options.dropMessage, true, false);
     if (options.toastMessage) {
@@ -312,6 +354,10 @@
   }
 
   async function requestPersistentAccess() {
+    if (!persistentAccessSupported) {
+      showToast(`Persistent file access is unavailable in ${browserName} in this context. Use drag-and-drop each session. For the best experience, please use Chrome, Edge, or Opera.`, TOAST_TYPES.INFO);
+      return;
+    }
     const result = await api.requestDatabasePermission();
     if (result?.ok) {
       showToast('Persistent access granted.', TOAST_TYPES.SUCCESS);
@@ -319,6 +365,7 @@
       setPendingGrantPersistentAccess(false);
     }
     else if (result?.reason === 'permission-denied') showToast('Permission denied by the browser.', TOAST_TYPES.ERROR);
+    else if (result?.reason === 'unsupported-browser') showToast(`Persistent file access is unavailable in ${browserName} in this context. For the best experience, please use Chrome, Edge, or Opera.`, TOAST_TYPES.INFO);
     else if (result?.reason === 'no-handle') showToast('No remembered database file. Drop encounters.db first.', TOAST_TYPES.INFO);
     else showToast('Could not reconnect the database.', TOAST_TYPES.ERROR);
     await refreshDatabaseStatus();
@@ -435,12 +482,16 @@
     </div>
 
     <div class="db-action-buttons">
-      <button id="grant-db-persistent-access-btn" type="button" class:grant-persistent-access-highlight={showGrantPersistentAccessHighlight} on:click={requestPersistentAccess} disabled={loading}>Grant persistent access</button>
+      <button id="grant-db-persistent-access-btn" type="button" class:grant-persistent-access-highlight={showGrantPersistentAccessHighlight} on:click={requestPersistentAccess} disabled={loading || !persistentAccessSupported}>Grant persistent access</button>
       <button id="reload-db-now-btn" type="button" on:click={reloadDbNow} disabled={loading}>Reload database now</button>
       <button id="reload-page-now-btn" type="button" class:reload-page-now-highlight={showReloadPageHighlight} on:click={reloadPageNow} disabled={loading}>Reload page now</button>
     </div>
 
-    <p class="db-permission-help">Tip: after the first load, click <strong>Reload page now</strong>. If permission is still blocked after reload, click <strong>Grant persistent access</strong> and accept the browser prompt.</p>
+    {#if persistentAccessSupported}
+      <p class="db-permission-help">Tip: after the first load, click <strong>Reload page now</strong>. If permission is still blocked after reload, click <strong>Grant persistent access</strong> and accept the browser prompt.</p>
+    {:else}
+      <p class="db-permission-help">{browserName} does not support persistent file handles in this flow. Load <strong>encounters.db</strong> again whenever a new session starts. For the best experience, please use <strong>Chrome</strong>, <strong>Edge</strong>, or <strong>Opera</strong>.</p>
+    {/if}
   </div>
 
   <div class="settings-bottom-grid">

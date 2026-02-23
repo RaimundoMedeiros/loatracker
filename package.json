@@ -7,13 +7,33 @@
     "dev": "vite --mode svelte",
     "build": "vite build --mode svelte",
     "preview": "vite preview --mode svelte",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint \"src/svelte/**/*.ts\" \"src/types/**/*.ts\"",
+    "lint:fix": "npm run lint -- --fix",
+    "lint:svelte": "eslint \"src/**/*.svelte\"",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "verify": "npm run lint && npm run test:run && npm run test:e2e",
+    "verify:strict": "npm run lint && npm run lint:svelte && npm run test:run && npm run test:e2e"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.58.2",
     "@sveltejs/vite-plugin-svelte": "^5.1.0",
+    "@testing-library/svelte": "^5.3.1",
+    "@vitest/coverage-v8": "^4.0.18",
+    "eslint": "^10.0.1",
+    "eslint-plugin-svelte": "^3.15.0",
+    "globals": "^17.3.0",
+    "jsdom": "^28.1.0",
     "svelte": "^5.20.2",
     "typescript": "^5.8.2",
-    "vite": "^6.0.0"
+    "typescript-eslint": "^8.56.1",
+    "vite": "^6.0.0",
+    "vitest": "^4.0.18"
   },
   "dependencies": {
     "wa-sqlite": "^1.0.0"

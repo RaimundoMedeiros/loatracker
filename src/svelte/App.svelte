@@ -766,7 +766,7 @@
 <main id="main-content">
   <header class="header">
     <div class="tabs" role="tablist" aria-label="Application sections">
-    {#each MAIN_ROUTES as route}
+    {#each MAIN_ROUTES as route (route)}
       <button
         id={getTabButtonId(route)}
         class="tab-button"
