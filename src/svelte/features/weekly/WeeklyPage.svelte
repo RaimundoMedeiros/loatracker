@@ -2343,11 +2343,19 @@
       if (!raid) return;
 
       const cell = getRaidCell(cardCharacterData, characterName, boss);
-      if (!cell.cleared || cell.hidden) return;
-
       const diff = cell.difficulty === 'Hard' ? 'hm' : 'nm';
-      const goldValue = Number((raid as any).gold?.[diff] || 0);
       const chestCost = Number((raid as any).chest?.[diff] || 0);
+
+      if (!cell.cleared) return;
+
+      if (cell.hidden) {
+        if (cell.chestOpened) {
+          total -= chestCost;
+        }
+        return;
+      }
+
+      const goldValue = Number((raid as any).gold?.[diff] || 0);
       total += cell.chestOpened ? (goldValue - chestCost) : goldValue;
     });
 
