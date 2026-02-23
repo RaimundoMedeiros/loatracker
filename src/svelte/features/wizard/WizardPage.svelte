@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { AppApi, RosterPayload, SettingsPayload } from '../../../types/app-api';
-  import { onDestroy } from 'svelte';
+  import type { AppApi, DbAccessSupport, RosterPayload, SettingsPayload } from '../../../types/app-api';
+  import { onDestroy, onMount } from 'svelte';
   import { UIHelper } from '../../utils/uiHelper';
   import { TOAST_TYPES } from '../../legacy/config/constants.js';
   import { BibleApiRequestError, BibleApiService } from '../../services/BibleApiService';
@@ -60,6 +60,12 @@
   let wizardDropSuccess = false;
   let wizardDropError = false;
   let wizardDragDepth = 0;
+  let dbAccessSupport: DbAccessSupport = {
+    persistentHandle: typeof window !== 'undefined' && typeof window.showOpenFilePicker === 'function',
+    nativeFilePicker: typeof window !== 'undefined' && typeof window.showOpenFilePicker === 'function',
+    handleDragDrop: typeof DataTransferItem !== 'undefined' && 'getAsFileSystemHandle' in DataTransferItem.prototype,
+    browser: 'unknown',
+  };
 
   let dbGuideOpen = false;
 
@@ -84,12 +90,31 @@
   $: wizardCanContinueDb = Boolean(wizardDbPath.trim()) && !loading;
   $: wizardSortIlvlArrow = sortField === 'ilvl' ? (sortDirection === 'desc' ? '↓' : '↑') : '↕';
   $: wizardSortCpArrow = sortField === 'combatPower' ? (sortDirection === 'desc' ? '↓' : '↑') : '↕';
+  $: browserName = dbAccessSupport?.browser === 'firefox'
+    ? 'Firefox'
+    : dbAccessSupport?.browser === 'safari'
+      ? 'Safari'
+      : dbAccessSupport?.browser === 'brave'
+        ? 'Brave'
+        : dbAccessSupport?.browser === 'edge'
+          ? 'Edge'
+          : dbAccessSupport?.browser === 'opera'
+            ? 'Opera'
+            : dbAccessSupport?.browser === 'chrome'
+              ? 'Chrome'
+              : dbAccessSupport?.browser === 'chromium'
+                ? 'Chromium'
+                : 'this browser';
 
   onDestroy(() => {
     if (cooldownTimer) {
       clearInterval(cooldownTimer);
       cooldownTimer = null;
     }
+  });
+
+  onMount(async () => {
+    await refreshDbAccessSupport();
   });
 
   function showToast(message: string, type = TOAST_TYPES.INFO) {
@@ -112,6 +137,14 @@
   function openDatabaseStep() {
     currentStep = 'database';
     mathiProgressVisible = false;
+    if (!dbAccessSupport.persistentHandle) {
+      resetWizardDropZone('Drag and drop encounters.db here to load it (session only in this browser).', false, false);
+    }
+  }
+
+  async function refreshDbAccessSupport() {
+    if (!api.getDatabaseAccessSupport) return;
+    dbAccessSupport = await api.getDatabaseAccessSupport();
   }
 
   function openMathimoeStep() {
@@ -316,6 +349,12 @@
   }
 
   async function handleWizardDbHandle(handle: FileSystemFileHandle) {
+    if (!dbAccessSupport.persistentHandle) {
+      const file = await handle.getFile();
+      await handleWizardDbFile(file);
+      showToast(`Persistent file access is unavailable in ${browserName} in this context. For the best experience, please use Chrome, Edge, or Opera.`, TOAST_TYPES.INFO);
+      return;
+    }
     await api.importDatabaseHandle(handle);
     const loadedName = handle?.name || 'encounters.db';
     await markWizardDbLoaded(
@@ -331,7 +370,7 @@
     await markWizardDbLoaded(
       loadedName,
       `Loaded: ${loadedName} (session only).`,
-      'Database loaded for this session only.'
+      'Database loaded for this session only. For the best experience, please use Chrome, Edge, or Opera.'
     );
   }
 
@@ -742,7 +781,7 @@
     </div>
 
     <div id="wizard-character-list" class="wizard-character-list">
-      {#each foundCharacters as character, index}
+      {#each foundCharacters as character, index (`${character.name}-${index}`)}
         <div
           class="wizard-character-item"
           role="button"

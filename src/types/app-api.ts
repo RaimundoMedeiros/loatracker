@@ -48,9 +48,16 @@ export type DbPermissionStatus = {
   permission: PermissionResult;
 };
 
+export type DbAccessSupport = {
+  persistentHandle: boolean;
+  nativeFilePicker: boolean;
+  handleDragDrop: boolean;
+  browser: 'firefox' | 'safari' | 'brave' | 'edge' | 'opera' | 'chrome' | 'chromium' | 'unknown';
+};
+
 export type DbPermissionRequestResult = {
   ok: boolean;
-  reason?: 'no-handle' | 'permission-denied' | 'error';
+  reason?: 'no-handle' | 'permission-denied' | 'unsupported-browser' | 'error';
 };
 
 export type ReloadDbResult = {
@@ -86,6 +93,7 @@ export interface AppApi {
   getCharactersFromDatabase(onProgress?: (message: string) => void): Promise<CharacterImportRow[]>;
 
   checkDatabaseExists(): Promise<boolean>;
+  getDatabaseAccessSupport(): Promise<DbAccessSupport>;
   getDatabasePermissionStatus(): Promise<DbPermissionStatus>;
   requestDatabasePermission(): Promise<DbPermissionRequestResult>;
   restorePersistedHandle(): Promise<boolean>;

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { SvelteMap } from 'svelte/reactivity';
   import { onDestroy, onMount } from 'svelte';
   import { UIHelper } from '../../utils/uiHelper';
   import { rosterChangeVersion } from '../../stores/rosterSync';
@@ -14,54 +15,18 @@
     sanitizeCachedSnapshot,
     shouldRefreshByTtl,
   } from './config';
+  import FriendsCards from './components/FriendsCards.svelte';
+  import FriendsSetupModal from './components/FriendsSetupModal.svelte';
+  import FriendsHeatmapModal from './components/FriendsHeatmapModal.svelte';
   import type { FriendSnapshot, FriendsRosterConfig } from './types';
-
-  type FriendRow = {
-    id: string;
-    title: string;
-    rosterCode: string;
-    updatedAt: string | null;
-    characterCount: number;
-    cacheAgeMin: number | null;
-    heatmapColor: string;
-  };
-
-  type HeatmapGroup = {
-    id: string;
-    name: string;
-    isSelf: boolean;
-    color: string;
-    characters: FriendSnapshot['characters'];
-  };
-
-  type HeatmapDetailRow = {
-    id: string;
-    group: HeatmapGroup;
-    character: FriendSnapshot['characters'][number] | null;
-  };
-
-  type SyncBadgeState = {
-    className: string;
-    label: string;
-    title: string;
-  };
-
-  type RaidCellState = {
-    className: string;
-    text: string;
-    label: string;
-  };
-
-  type FriendGridCard = {
-    id: string;
-    title: string;
-    rosterCode: string;
-    isSelf: boolean;
-    updatedAt: string | null;
-    cacheAgeMin: number | null;
-    heatmapColor: string;
-    characters: FriendSnapshot['characters'];
-  };
+  import type {
+    FriendGridCard,
+    FriendRow,
+    HeatmapDetailRow,
+    HeatmapGroup,
+    RaidCellState,
+    SyncBadgeState,
+  } from './viewModels';
 
   let loading = true;
   let refreshing = false;
@@ -92,21 +57,6 @@
   let heatmapDetailRows: HeatmapDetailRow[] = [];
   let gridCards: FriendGridCard[] = [];
   let visibleRaidIndices: number[] = RAID_CONFIG.map((_: any, index: number) => index);
-  let summaryHoveredRow = '-2';
-  let summaryHoveredCol = '-2';
-  let detailHoveredRow = '-2';
-  let detailHoveredCol = '-2';
-  let savedPin = '';
-  let activePin = '';
-  let pinMissing = true;
-  let uploadRemainingSec = 0;
-  let refreshRemainingSec = 0;
-  let uploadLocked = false;
-  let refreshLocked = false;
-  let disableUpload = true;
-  let disableRefresh = true;
-  let uploadTitle = 'Upload your weekly to friends sync';
-  let refreshTitle = '';
 
   const MAX_FRIENDS = 7;
   const MIN_PIN_LENGTH = 4;
@@ -124,7 +74,11 @@
     kazeros: 'KAZEROS',
   };
 
-  const friendSnapshots = new Map<string, FriendSnapshot>();
+  function getRaidConfigAt(raidIndex: number): { id?: string } | undefined {
+    return RAID_CONFIG[raidIndex] as { id?: string } | undefined;
+  }
+
+  const friendSnapshots = new SvelteMap<string, FriendSnapshot>();
   const ui = new UIHelper();
   let friendsState: FriendsStateService | null = null;
   let friendsService: FriendsRosterService | null = null;
@@ -194,22 +148,69 @@
     unsubscribeRosterChanges = null;
   });
 
-  $: savedPin = resolveSelfPin(friendsConfig);
-  $: activePin = String(selfPin || savedPin || '').trim();
-  $: pinMissing = activePin.length < MIN_PIN_LENGTH;
-  $: uploadRemainingSec = Math.ceil(getUploadCooldownRemainingMs() / 1000);
-  $: refreshRemainingSec = Math.ceil(getRefreshCooldownRemainingMs() / 1000);
-  $: uploadLocked = uploadRemainingSec > 0;
-  $: refreshLocked = refreshRemainingSec > 0;
-  $: disableUpload = isBusy || uploadLocked || pinMissing;
-  $: disableRefresh = isBusy || refreshLocked;
-  $: uploadTitle = pinMissing
-    ? 'Set your PIN first'
-    : (uploadLocked ? `Available in ${Math.max(0, uploadRemainingSec)}s` : 'Upload your weekly to friends sync');
-  $: refreshTitle = refreshLocked ? `Available in ${Math.max(0, refreshRemainingSec)}s` : '';
-  $: copyLabel = copyFeedbackUntil > Date.now() ? 'Copied!' : 'Copy';
-  $: maskedSelfCode = selfCodeVisible ? (selfCode || '-') : (selfCode ? '******' : '-');
-  $: selfPinInputType = selfPinVisible ? 'text' : 'password';
+  function getSavedPin() {
+    return resolveSelfPin(friendsConfig);
+  }
+
+  function getActivePin() {
+    return String(selfPin || getSavedPin() || '').trim();
+  }
+
+  function isPinMissing() {
+    return getActivePin().length < MIN_PIN_LENGTH;
+  }
+
+  function getUploadRemainingSec() {
+    return Math.ceil(getUploadCooldownRemainingMs() / 1000);
+  }
+
+  function getRefreshRemainingSec() {
+    return Math.ceil(getRefreshCooldownRemainingMs() / 1000);
+  }
+
+  function isUploadLocked() {
+    return getUploadRemainingSec() > 0;
+  }
+
+  function isRefreshLocked() {
+    return getRefreshRemainingSec() > 0;
+  }
+
+  function getDisableUpload() {
+    return isBusy || isUploadLocked() || isPinMissing();
+  }
+
+  function getDisableRefresh() {
+    return isBusy || isRefreshLocked();
+  }
+
+  function getUploadTitle() {
+    if (isPinMissing()) {
+      return 'Set your PIN first';
+    }
+
+    if (isUploadLocked()) {
+      return `Available in ${Math.max(0, getUploadRemainingSec())}s`;
+    }
+
+    return 'Upload your weekly to friends sync';
+  }
+
+  function getRefreshTitle() {
+    return isRefreshLocked() ? `Available in ${Math.max(0, getRefreshRemainingSec())}s` : '';
+  }
+
+  function getCopyLabel() {
+    return copyFeedbackUntil > Date.now() ? 'Copied!' : 'Copy';
+  }
+
+  function getMaskedSelfCode() {
+    return selfCodeVisible ? (selfCode || '-') : (selfCode ? '******' : '-');
+  }
+
+  function getSelfPinInputType(): 'text' | 'password' {
+    return selfPinVisible ? 'text' : 'password';
+  }
 
   async function initialize() {
     loading = true;
@@ -627,22 +628,6 @@
     return { doneCount, visibleCount };
   }
 
-  function shouldHighlightRow(rowId: string, hoveredRow: string) {
-    return hoveredRow !== '-2' && rowId === hoveredRow;
-  }
-
-  function shouldHighlightCol(colId: string, hoveredCol: string) {
-    return hoveredCol !== '-2' && hoveredCol !== '-1' && colId === hoveredCol;
-  }
-
-  function getVisibilityIconSvg(isVisible: boolean) {
-    if (isVisible) {
-      return '<svg class="friends-visibility-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 3l18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M10.58 10.58A2 2 0 0012 14a2 2 0 001.42-.58" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.88 5.09A10.94 10.94 0 0112 5c5 0 9.27 3.11 11 7-1.01 2.28-2.79 4.18-5.05 5.33" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.61 6.61C4.62 7.85 3.08 9.76 2 12c.81 1.68 1.96 3.12 3.36 4.22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    }
-
-    return '<svg class="friends-visibility-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>';
-  }
-
   function getDefaultHeatmapColor(seed = '') {
     const text = String(seed || 'seed');
     let hash = 0;
@@ -697,6 +682,19 @@
     });
 
     recomputeUiModels();
+  }
+
+  function getColorInputValue(event: Event): string {
+    const target = event.currentTarget as HTMLInputElement | null;
+    return String(target?.value || '').trim();
+  }
+
+  function handleSelfHeatmapColorEvent(event: Event) {
+    updateSelfHeatmapColor(getColorInputValue(event));
+  }
+
+  function handleFriendHeatmapColorEvent(friendId: string, event: Event) {
+    updateFriendHeatmapColor(friendId, getColorInputValue(event));
   }
 
   function buildHeatmapGroups(): HeatmapGroup[] {
@@ -1277,6 +1275,34 @@
   async function onManualRefresh() {
     await refreshFriends(true);
   }
+
+  function toggleSelfCodeVisibility() {
+    selfCodeVisible = !selfCodeVisible;
+  }
+
+  function toggleSelfPinVisibility() {
+    selfPinVisible = !selfPinVisible;
+  }
+
+  function updateSelfPinInput(nextValue: string) {
+    selfPin = String(nextValue || '');
+  }
+
+  function updateAddRosterCode(nextValue: string) {
+    addRosterCode = String(nextValue || '');
+  }
+
+  function updateAddPin(nextValue: string) {
+    addPin = String(nextValue || '');
+  }
+
+  function updateAddAlias(nextValue: string) {
+    addAlias = String(nextValue || '');
+  }
+
+  function updateAliasDraft(nextValue: string) {
+    aliasDraft = String(nextValue || '');
+  }
 </script>
 
 <section id="friends-tab" class="tab-content active">
@@ -1300,8 +1326,8 @@
           id="friends-upload-btn"
           class="header-icon-btn"
           type="button"
-          disabled={disableUpload || loading || !configured}
-          title={uploadTitle}
+          disabled={getDisableUpload() || loading || !configured}
+          title={getUploadTitle()}
           on:click={handleManualUpload}
         >
           <span class="btn-label">{uploading ? 'Uploading...' : 'Upload Weekly'}</span>
@@ -1312,8 +1338,8 @@
           class="header-icon-btn"
           type="button"
           on:click={onManualRefresh}
-          disabled={disableRefresh || loading || !configured}
-          title={refreshTitle}
+          disabled={getDisableRefresh() || loading || !configured}
+          title={getRefreshTitle()}
         >
           <span class="btn-label">{refreshing ? 'Refreshing...' : 'Refresh Friends'}</span>
         </button>
@@ -1332,378 +1358,70 @@
     </div>
   </div>
 
-  <div class="friends-grid" aria-live="polite">
-    {#if loading}
-      <p class="friends-empty">Loading Friends...</p>
-    {:else}
-      {#if message}
-        <p class="friends-empty">{message}</p>
-      {/if}
+  <FriendsCards
+    {loading}
+    {message}
+    {gridCards}
+    {visibleRaidIndices}
+    friendsRaidLabels={FRIENDS_RAID_LABELS}
+    {computeCardRaidProgress}
+    {resolveCardSyncState}
+    {getRaidConfigAt}
+  />
 
-      {#if gridCards.length === 0}
-        <p class="friends-empty">No roster data to display.</p>
-      {:else}
-        {#each gridCards as card}
-          {@const progress = computeCardRaidProgress(card.characters, visibleRaidIndices)}
-          {@const syncState = resolveCardSyncState(card)}
-          <section class={`friends-card${card.isSelf ? ' friends-card--self' : ''}`}>
-            <div class="friends-card__header">
-              <h2 class="friends-card__title" style={`color:${card.heatmapColor};`}>{card.title}</h2>
-              <div class="friends-card__meta">
-                <span class="friends-card__summary">
-                  {#if progress.total > 0}
-                    {progress.done}/{progress.total} raids done
-                  {:else}
-                    No visible raids
-                  {/if}
-                </span>
-                <span class={`friends-card__sync-badge ${syncState.className}`} title={syncState.title}>
-                  {syncState.label}
-                </span>
-              </div>
-            </div>
+  <FriendsSetupModal
+    visible={setupVisible}
+    maskedSelfCode={getMaskedSelfCode()}
+    {selfHeatmapColor}
+    {selfCodeVisible}
+    copyFeedbackActive={copyFeedbackUntil > Date.now()}
+    copyLabel={getCopyLabel()}
+    {selfPin}
+    selfPinInputType={getSelfPinInputType()}
+    {selfPinVisible}
+    disableUpload={getDisableUpload()}
+    {loading}
+    {configured}
+    uploadTitle={getUploadTitle()}
+    {uploading}
+    {addRosterCode}
+    {addPin}
+    {addAlias}
+    {refreshing}
+    {rows}
+    {editingAliasFriendId}
+    {aliasDraft}
+    {formatDateTime}
+    onClose={() => toggleSetupView(false)}
+    onSelfColorInput={handleSelfHeatmapColorEvent}
+    onToggleSelfCodeVisibility={toggleSelfCodeVisibility}
+    onCopySelfCode={copySelfRosterCode}
+    onSelfPinInput={updateSelfPinInput}
+    onSelfPinChange={() => updateSelfPin(selfPin)}
+    onToggleSelfPinVisibility={toggleSelfPinVisibility}
+    onUpload={handleManualUpload}
+    onAddRosterCodeInput={updateAddRosterCode}
+    onAddPinInput={updateAddPin}
+    onAddAliasInput={updateAddAlias}
+    onAddFriend={addFriend}
+    onStartEditingAlias={startEditingFriendAlias}
+    onAliasDraftInput={updateAliasDraft}
+    onSaveEditingAlias={saveEditingFriendAlias}
+    onCancelEditingAlias={cancelEditingFriendAlias}
+    onFriendColorInput={handleFriendHeatmapColorEvent}
+    onRemoveFriend={removeFriend}
+  />
 
-            <div class="friends-table-wrap">
-              <table class="friends-table" style={`min-width: ${56 + (visibleRaidIndices.length * 58)}px;`}>
-                <thead>
-                  <tr>
-                    <th>CHAR</th>
-                    {#each visibleRaidIndices as raidIndex}
-                      {@const raid = RAID_CONFIG[raidIndex] as any}
-                      <th>{FRIENDS_RAID_LABELS[String(raid?.id || '')] || String(raid?.id || '').toUpperCase()}</th>
-                    {/each}
-                  </tr>
-                </thead>
-                <tbody>
-                  {#if card.characters.length === 0}
-                    <tr>
-                      <td class="friends-row-empty" colspan={visibleRaidIndices.length + 1}>No characters synced yet</td>
-                    </tr>
-                  {:else}
-                    {#each card.characters as character}
-                      <tr>
-                        <td class="friends-char-name">{character.name}</td>
-                        {#each visibleRaidIndices as raidIndex}
-                          {@const hasVisibleMask = character.visibleMask !== null && character.visibleMask !== undefined}
-                          {@const visible = hasVisibleMask ? (((character.visibleMask || 0) & (1 << raidIndex)) !== 0) : true}
-                          {@const ignored = !visible}
-                          {@const doneRaw = (((character.raidMask || 0) & (1 << raidIndex)) !== 0)}
-                          {@const hiddenDone = ignored && doneRaw}
-                          {@const done = !ignored && doneRaw}
-                          <td
-                            class={`friends-raid-cell${hiddenDone ? ' is-hidden-done' : (ignored ? ' is-ignored' : (done ? ' is-done' : ' is-pending'))}`}
-                            title={hiddenDone ? 'Completed (hidden from gold)' : (ignored ? 'Hidden for this character' : (done ? 'Completed' : 'Available and not completed'))}
-                          >
-                            {hiddenDone ? '✓' : (ignored ? '-' : (done ? '✓' : '●'))}
-                          </td>
-                        {/each}
-                      </tr>
-                    {/each}
-                  {/if}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        {/each}
-      {/if}
-    {/if}
-  </div>
-
-  <div id="friends-setup-modal" class="friends-setup-modal" style={setupVisible ? 'display: block;' : 'display: none;'} role="dialog" aria-modal="true" aria-labelledby="friends-setup-title">
-    <div class="modal-overlay" role="button" tabindex="0" aria-label="Close friends setup" on:click={() => toggleSetupView(false)} on:keydown={(event) => { if (event.key === 'Enter' || event.key === ' ') toggleSetupView(false); }}></div>
-    <div class="modal-content friends-setup-modal__content">
-      <button id="friends-setup-close-btn" class="close-btn" aria-label="Close friends setup" on:click={() => toggleSetupView(false)}>×</button>
-      <div class="friends-setup-titlebar">
-        <h2 id="friends-setup-title">Friends Setup</h2>
-        <p>Configure your profile and manage who appears in your sync list.</p>
-      </div>
-
-      <div class="friends-setup-layout">
-        <section class="friends-setup-card friends-setup-card--profile" aria-labelledby="friends-profile-title">
-          <div class="friends-setup-card__header">
-            <h3 id="friends-profile-title">My Profile</h3>
-            <span class="friends-setup-card__subtitle">Share your roster code and PIN so your friends can add you</span>
-          </div>
-
-          <div class="friends-self-code-row">
-            <div class="friends-self-code friends-self-code--id-card">
-              <span class="friends-self-label">Your roster code</span>
-              <code id="friends-self-code">{maskedSelfCode}</code>
-            </div>
-            <label class="friends-self-color" for="friends-self-color-input" title="Roster color used for your card and character names in this tab">
-              <span class="visually-hidden">Roster color for your card and character names in this tab</span>
-              <input
-                id="friends-self-color-input"
-                type="color"
-                value={selfHeatmapColor}
-                aria-label="Roster color for your card and character names in this tab"
-                on:input={(event) => updateSelfHeatmapColor((event.currentTarget as HTMLInputElement).value || '')}
-                on:change={(event) => updateSelfHeatmapColor((event.currentTarget as HTMLInputElement).value || '')}
-              />
-            </label>
-            <button
-              id="friends-code-visibility-btn"
-              class="friends-visibility-btn"
-              type="button"
-              title={selfCodeVisible ? 'Hide roster code' : 'Show roster code'}
-              aria-label={selfCodeVisible ? 'Hide roster code' : 'Show roster code'}
-              aria-pressed={selfCodeVisible}
-              on:click={() => { selfCodeVisible = !selfCodeVisible; }}
-            >
-              {@html getVisibilityIconSvg(selfCodeVisible)}
-            </button>
-            <button
-              id="friends-copy-code-btn"
-              class={`friends-copy-code-btn ${copyFeedbackUntil > Date.now() ? 'is-copied' : ''}`}
-              type="button"
-              title={copyFeedbackUntil > Date.now() ? 'Copied' : 'Copy to clipboard'}
-              aria-label={copyFeedbackUntil > Date.now() ? 'Copied' : 'Copy to clipboard'}
-              on:click={copySelfRosterCode}
-            >
-              <img src="assets/icons/items/copy.svg" alt="" aria-hidden="true" />
-              <span class="friends-copy-code-btn__text">{copyLabel}</span>
-            </button>
-          </div>
-
-          <div class="friends-controls-row">
-            <label class="friends-self-pin-label" for="friends-self-pin-input">
-              <span>Your PIN</span>
-              <div class="friends-self-pin-input-wrap">
-                <input
-                  id="friends-self-pin-input"
-                  type={selfPinInputType}
-                  maxlength="32"
-                  bind:value={selfPin}
-                  on:change={() => updateSelfPin(selfPin)}
-                  placeholder="PIN for your uploads"
-                />
-                <button
-                  id="friends-self-pin-visibility-btn"
-                  class="friends-visibility-btn"
-                  type="button"
-                  title={selfPinVisible ? 'Hide PIN' : 'Show PIN'}
-                  aria-label={selfPinVisible ? 'Hide PIN' : 'Show PIN'}
-                  aria-pressed={selfPinVisible}
-                  on:click={() => { selfPinVisible = !selfPinVisible; }}
-                >
-                  {@html getVisibilityIconSvg(selfPinVisible)}
-                </button>
-              </div>
-            </label>
-          </div>
-
-          <div class="friends-profile-actions">
-            <button
-              id="friends-upload-profile-btn"
-              class="friends-profile-upload-btn"
-              type="button"
-              disabled={disableUpload || loading || !configured}
-              title={uploadTitle}
-              on:click={handleManualUpload}
-            >
-              {uploading ? 'Uploading...' : 'Upload Weekly'}
-            </button>
-          </div>
-
-          <div class="friends-profile-instructions" role="note" aria-label="Instructions">
-            <span class="friends-profile-instructions__title">Instructions:</span>
-            <p>Set your PIN, upload weekly, then share roster code + PIN with your friends.</p>
-            <p>When the app regains focus, weekly changes are checked and uploaded automatically.</p>
-          </div>
-        </section>
-
-        <section class="friends-setup-card friends-setup-card--friends" aria-labelledby="friends-manage-title">
-          <div class="friends-setup-card__header">
-            <h3 id="friends-manage-title">Manage Friends</h3>
-            <span class="friends-setup-card__subtitle">Add friends to compare weekly raid progress</span>
-          </div>
-
-          <form id="friends-add-form" class="friends-add-form" autocomplete="off" on:submit|preventDefault={addFriend}>
-            <input id="friends-code-input" bind:value={addRosterCode} type="text" placeholder="Friend roster code" maxlength="80" required />
-            <input id="friends-pin-input" bind:value={addPin} type="password" placeholder="PIN" maxlength="32" required />
-            <input id="friends-alias-input" bind:value={addAlias} type="text" placeholder="Alias (optional)" maxlength="32" />
-            <button id="friends-add-btn" type="submit" disabled={refreshing || loading || !configured}>Add Friend</button>
-          </form>
-
-          <div id="friends-list" class={`friends-list ${rows.length === 0 ? 'friends-list--empty' : ''}`} aria-label="Configured friends">
-            {#if rows.length === 0}
-              <div class="friends-empty-state" role="status" aria-live="polite">
-                <div class="friends-empty-state__icon" aria-hidden="true">⚔</div>
-                <p class="friends-empty-state__text">Your friends list is empty. Add someone to compare raid progress!</p>
-              </div>
-            {:else}
-              {#each rows as row}
-                <div class="friends-list-item">
-                  <div class="friends-list-item__alias-wrap">
-                    {#if editingAliasFriendId === row.id}
-                      <input
-                        class="friends-list-item__alias-input"
-                        type="text"
-                        maxlength="32"
-                        bind:value={aliasDraft}
-                        aria-label={`Edit alias for ${row.title}`}
-                        on:keydown={(event) => {
-                          if (event.key === 'Enter') {
-                            event.preventDefault();
-                            saveEditingFriendAlias(row.id);
-                          } else if (event.key === 'Escape') {
-                            event.preventDefault();
-                            cancelEditingFriendAlias();
-                          }
-                        }}
-                      />
-                    {:else}
-                      <span class="friends-list-item__alias" style={`color:${row.heatmapColor};`}>{row.title}</span>
-                    {/if}
-                  </div>
-                  <span class="friends-list-item__updated-at">{row.updatedAt ? `Updated at: ${formatDateTime(row.updatedAt)}` : 'Updated at: -'}</span>
-                  <span class="friends-list-item__code">{row.rosterCode}</span>
-                  <div class="friends-list-item__actions">
-                    {#if editingAliasFriendId === row.id}
-                      <button class="friends-list-item__alias-save" type="button" aria-label={`Save alias for ${row.title}`} on:click={() => saveEditingFriendAlias(row.id)}>Save</button>
-                      <button class="friends-list-item__alias-cancel" type="button" aria-label={`Cancel alias edit for ${row.title}`} on:click={cancelEditingFriendAlias}>Cancel</button>
-                    {:else}
-                      <button class="friends-list-item__alias-edit" type="button" aria-label={`Edit alias for ${row.title}`} on:click={() => startEditingFriendAlias(row.id)}>
-                        Alias
-                      </button>
-                    {/if}
-                    <input
-                      class="friends-list-item__color"
-                      type="color"
-                      value={row.heatmapColor}
-                      aria-label={`Heatmap color for ${row.title}`}
-                      on:input={(event) => updateFriendHeatmapColor(row.id, (event.currentTarget as HTMLInputElement).value || '')}
-                      on:change={(event) => updateFriendHeatmapColor(row.id, (event.currentTarget as HTMLInputElement).value || '')}
-                    />
-                    <button class="friends-list-item__remove" type="button" aria-label={`Remove ${row.title}`} on:click={() => removeFriend(row.id)}>
-                      <span aria-hidden="true">🗑</span><span class="visually-hidden">Remove friend</span>
-                    </button>
-                  </div>
-                </div>
-              {/each}
-            {/if}
-          </div>
-        </section>
-      </div>
-    </div>
-  </div>
-
-  <div id="friends-heatmap-modal" class="friends-heatmap-modal" style={friendsConfig.heatmapVisible ? 'display: block;' : 'display: none;'} role="dialog" aria-modal="true" aria-labelledby="friends-heatmap-title">
-    <div class="modal-overlay" role="button" tabindex="0" aria-label="Close group view" on:click={() => toggleHeatmapView(false)} on:keydown={(event) => { if (event.key === 'Enter' || event.key === ' ') toggleHeatmapView(false); }}></div>
-    <div class="modal-content friends-heatmap-modal__content">
-      <button class="close-btn" aria-label="Close group view" on:click={() => toggleHeatmapView(false)}>×</button>
-      <h2 id="friends-heatmap-title">Group View</h2>
-      <div class="friends-heatmap" aria-label="Group raid view">
-        {#if heatmapGroups.length === 0}
-          <div class="friends-heatmap-empty" role="status" aria-live="polite">
-            <h3>Group View is empty</h3>
-            <p>Upload your weekly data in Friends Setup, then refresh friends to compare progress.</p>
-          </div>
-        {:else}
-          <div class="friends-heatmap-dual">
-            <div class="friends-heatmap-intro">
-              <div class="friends-heatmap-intro__text">
-                <h3 class="friends-heatmap-intro__title">Compare roster progress at a glance</h3>
-                <p class="friends-heatmap-intro__meta">
-                  {heatmapGroups.length} rosters • {heatmapDetailRows.length} characters • {visibleRaidIndices.length} raids
-                </p>
-              </div>
-              <div class="friends-heatmap-legend">
-                <span class="friends-heatmap-legend__item state-self-done">✓ Completed</span>
-                <span class="friends-heatmap-legend__item state-self-available">● Available</span>
-                <span class="friends-heatmap-legend__item state-hidden-done">✓ Hidden + completed</span>
-                <span class="friends-heatmap-legend__item state-none">- Hidden</span>
-                <span class="friends-heatmap-legend__item state-progress">0/x Progress</span>
-              </div>
-            </div>
-
-            <h3 class="friends-heatmap-section-title">Roster Summary</h3>
-            <div class="friends-heatmap-wrap friends-heatmap-wrap--primary">
-              <table class="friends-heatmap-table friends-heatmap-table--summary" on:mouseleave={() => { summaryHoveredRow = '-2'; summaryHoveredCol = '-2'; }}>
-                <thead>
-                  <tr>
-                    <th>ROSTER</th>
-                    {#each visibleRaidIndices as raidIndex, columnIndex}
-                      {@const raid = RAID_CONFIG[raidIndex] as any}
-                      {@const colId = String(columnIndex)}
-                      <th class:is-hover-col={shouldHighlightCol(colId, summaryHoveredCol)}>
-                        {FRIENDS_RAID_LABELS[String(raid?.id || '')] || String(raid?.id || '').toUpperCase()}
-                      </th>
-                    {/each}
-                  </tr>
-                </thead>
-                <tbody>
-                  {#each heatmapGroups as group, rowIndex}
-                    {@const rowId = String(rowIndex)}
-                    <tr style={`--friends-row-color:${group.color || '#64b5f6'};`} class:friends-heatmap-group={group.isSelf} class:is-self={group.isSelf}>
-                      <th
-                        class={`friends-heatmap-roster${group.isSelf ? ' is-self' : ''} ${shouldHighlightRow(rowId, summaryHoveredRow) ? 'is-hover-row' : ''}`}
-                        on:pointerenter={() => { summaryHoveredRow = rowId; summaryHoveredCol = '-1'; }}
-                      >
-                        {group.name}
-                      </th>
-                      {#each visibleRaidIndices as raidIndex, columnIndex}
-                        {@const colId = String(columnIndex)}
-                        {@const counts = getRosterSummaryCounts(group.characters, raidIndex)}
-                        {@const state = resolveRosterSummaryState(counts.doneCount, counts.visibleCount)}
-                        <td
-                          class={`friends-heatmap-cell ${state.className} ${shouldHighlightRow(rowId, summaryHoveredRow) ? 'is-hover-row' : ''} ${shouldHighlightCol(colId, summaryHoveredCol) ? 'is-hover-col' : ''}`}
-                          title={state.label}
-                          on:pointerenter={() => { summaryHoveredRow = rowId; summaryHoveredCol = colId; }}
-                        >
-                          {state.text}
-                        </td>
-                      {/each}
-                    </tr>
-                  {/each}
-                </tbody>
-              </table>
-            </div>
-
-            <h3 class="friends-heatmap-section-title">Characters Detail</h3>
-            <div class="friends-heatmap-wrap friends-heatmap-wrap--secondary">
-              <table class="friends-heatmap-table friends-heatmap-table--detail" on:mouseleave={() => { detailHoveredRow = '-2'; detailHoveredCol = '-2'; }}>
-                <thead>
-                  <tr>
-                    <th>CHAR</th>
-                    {#each visibleRaidIndices as raidIndex, columnIndex}
-                      {@const raid = RAID_CONFIG[raidIndex] as any}
-                      {@const colId = String(columnIndex)}
-                      <th class:is-hover-col={shouldHighlightCol(colId, detailHoveredCol)}>
-                        {FRIENDS_RAID_LABELS[String(raid?.id || '')] || String(raid?.id || '').toUpperCase()}
-                      </th>
-                    {/each}
-                  </tr>
-                </thead>
-                <tbody>
-                  {#each heatmapDetailRows as entry, rowIndex (entry.id)}
-                    {@const rowId = String(rowIndex)}
-                    <tr style={`--friends-char-color:${entry.group?.color || 'var(--color-text)'};`}>
-                      <th
-                        class={`friends-heatmap-char-name ${shouldHighlightRow(rowId, detailHoveredRow) ? 'is-hover-row' : ''}`}
-                        on:pointerenter={() => { detailHoveredRow = rowId; detailHoveredCol = '-1'; }}
-                      >
-                        {entry.character?.name || '—'}
-                      </th>
-                      {#each visibleRaidIndices as raidIndex, columnIndex}
-                        {@const colId = String(columnIndex)}
-                        {@const state = resolveDetailedState(entry.character, raidIndex)}
-                        <td
-                          class={`friends-heatmap-cell ${state.className} ${shouldHighlightRow(rowId, detailHoveredRow) ? 'is-hover-row' : ''} ${shouldHighlightCol(colId, detailHoveredCol) ? 'is-hover-col' : ''}`}
-                          title={state.label}
-                          on:pointerenter={() => { detailHoveredRow = rowId; detailHoveredCol = colId; }}
-                        >
-                          {state.text}
-                        </td>
-                      {/each}
-                    </tr>
-                  {/each}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        {/if}
-      </div>
-    </div>
-  </div>
+  <FriendsHeatmapModal
+    visible={friendsConfig.heatmapVisible}
+    {heatmapGroups}
+    {heatmapDetailRows}
+    {visibleRaidIndices}
+    friendsRaidLabels={FRIENDS_RAID_LABELS}
+    {getRaidConfigAt}
+    {getRosterSummaryCounts}
+    {resolveRosterSummaryState}
+    {resolveDetailedState}
+    onClose={() => toggleHeatmapView(false)}
+  />
 </section>

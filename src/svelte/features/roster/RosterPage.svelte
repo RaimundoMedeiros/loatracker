@@ -45,15 +45,15 @@
   let formCombatPower = '';
   let editingName: string | null = null;
   let characters: RosterEntry[] = [];
-  let isEditing = false;
+  let isEditing: boolean;
   let sortDropdownOpen = false;
   let sortButtonRef: HTMLDivElement | null = null;
   let draggingName: string | null = null;
   let dragActive = false;
   let refreshCooldownRemaining = 0;
   let refreshCooldownTimer: ReturnType<typeof setInterval> | null = null;
-  let totalCharacters = 0;
-  let visibleCharacters = 0;
+  let totalCharacters: number;
+  let visibleCharacters: number;
   let unsubscribeRosterChanges: (() => void) | null = null;
   let pendingRemoveCharacterName = '';
   let removeCharacterConfirmOpen = false;
@@ -711,7 +711,7 @@
       <p class="friends-empty roster-empty">No characters in roster.</p>
     {/if}
 
-    {#each characters as character}
+    {#each characters as character (character.name)}
       <article
         class="character-card"
         draggable="true"
@@ -790,7 +790,7 @@
 
           <select id="char-class" bind:value={formClass}>
             <option value="">Select Class</option>
-            {#each CHARACTER_CLASSES as className}
+            {#each CHARACTER_CLASSES as className (className)}
               <option value={className}>{className}</option>
             {/each}
           </select>
@@ -834,7 +834,7 @@
           />
 
           <select id="bible-region" bind:value={bibleRegion} disabled={bibleLoading}>
-            {#each MATHI_API_CONFIG.REGIONS as region}
+            {#each MATHI_API_CONFIG.REGIONS as region (region)}
               <option value={region}>{region}</option>
             {/each}
           </select>

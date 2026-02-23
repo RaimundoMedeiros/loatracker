@@ -2,6 +2,7 @@ import { dbBridge } from './dbBridge';
 import type { AppApi, CharacterImportRow } from './types/app-api';
 
 type PermissionResult = 'granted' | 'denied' | 'prompt' | 'unknown';
+type DbAccessSupport = Awaited<ReturnType<AppApi['getDatabaseAccessSupport']>>;
 type DbPermissionStatus = Awaited<ReturnType<AppApi['getDatabasePermissionStatus']>>;
 type DbPermissionRequestResult = Awaited<ReturnType<AppApi['requestDatabasePermission']>>;
 type ReloadDbResult = Awaited<ReturnType<AppApi['reloadCurrentDatabase']>>;
@@ -80,6 +81,30 @@ const HANDLE_DB = 'wtl-db-handle';
 const HANDLE_STORE = 'handles';
 const HANDLE_KEY = 'encounters-db-handle';
 let restoreHandlePromise: Promise<boolean> | null = null;
+
+function detectBrowserFamily(): DbAccessSupport['browser'] {
+  const userAgent = String(navigator?.userAgent || '').toLowerCase();
+  if ((navigator as { brave?: unknown } | undefined)?.brave) return 'brave';
+  if (userAgent.includes('firefox/')) return 'firefox';
+  if (userAgent.includes('safari/') && !userAgent.includes('chrome/')) return 'safari';
+  if (userAgent.includes('edg/')) return 'edge';
+  if (userAgent.includes('opr/')) return 'opera';
+  if (userAgent.includes('chrome/')) return 'chrome';
+  if (userAgent.includes('chromium/')) return 'chromium';
+  return 'unknown';
+}
+
+function detectDatabaseAccessSupport(): DbAccessSupport {
+  const nativeFilePicker = typeof window.showOpenFilePicker === 'function';
+  const itemProto = typeof DataTransferItem !== 'undefined' ? DataTransferItem.prototype as Partial<DataTransferItem> : null;
+  const handleDragDrop = Boolean(itemProto && 'getAsFileSystemHandle' in itemProto);
+  return {
+    persistentHandle: nativeFilePicker,
+    nativeFilePicker,
+    handleDragDrop,
+    browser: detectBrowserFamily(),
+  };
+}
 
 /** Update display metadata only – does NOT touch the OPFS file or the worker. */
 function updateDbMeta(name: string, meta: Partial<DbMetaState> | null | undefined) {
@@ -404,6 +429,10 @@ async function checkDatabaseExists() {
   return dbBridge.isReady;
 }
 
+async function getDatabaseAccessSupport(): Promise<DbAccessSupport> {
+  return detectDatabaseAccessSupport();
+}
+
 async function getDatabasePermissionStatus(): Promise<DbPermissionStatus> {
   await restorePersistedHandle();
   const handle = currentHandle;
@@ -604,6 +633,8 @@ async function clearCurrentDatabase() {
  * Returns { ok: true } on success or { ok: false, reason } on failure.
  */
 async function requestDatabasePermission(): Promise<DbPermissionRequestResult> {
+  const support = detectDatabaseAccessSupport();
+  if (!support.persistentHandle) return { ok: false, reason: 'unsupported-browser' };
   const handle = currentHandle || await loadPersistedHandle();
   if (!handle) return { ok: false, reason: 'no-handle' };
   try {
@@ -795,6 +826,7 @@ const api: AppApi = {
   getCharactersFromDatabase,
   browseDatabaseFile,
   checkDatabaseExists,
+  getDatabaseAccessSupport,
   getDatabasePermissionStatus,
   requestDatabasePermission,
   restorePersistedHandle,
