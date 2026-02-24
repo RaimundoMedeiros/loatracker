@@ -50,7 +50,7 @@
   type DailyData = {
     date: string;
     characters: Record<string, { guardianRaid: DailyActivity; chaosDungeon: DailyActivity }>;
-    roster: { fieldBoss: DailyActivity; chaosGate: DailyActivity };
+    roster: { fieldBoss: DailyActivity; chaosGate: DailyActivity; thaemine?: DailyActivity };
   };
 
   type DailyPeriod = {
@@ -1112,6 +1112,7 @@
       roster: {
         fieldBoss: defaultActivity(),
         chaosGate: defaultActivity(),
+        thaemine: defaultActivity(),
       },
     };
   }
@@ -1122,6 +1123,9 @@
       return;
     }
 
+    const weeklyPeriod = await api.getWeeklyResetPeriod?.();
+    const weeklyStartIso = new Date(weeklyPeriod?.start || 0).toISOString();
+
     for (const rosterMeta of rosterList) {
       const rosterId = String(rosterMeta?.id || '').trim();
       if (!rosterId) continue;
@@ -1130,13 +1134,23 @@
       const rosterData = (loaded?.roster || {}) as Record<string, unknown>;
       const orderData = Array.isArray(loaded?.order) ? loaded.order : [];
 
-      const savedDailyDate = (rosterData?.dailyData as DailyData | undefined)?.date;
+      const currentDailyData = rosterData?.dailyData as DailyData | undefined;
+      const savedDailyDate = currentDailyData?.date;
+      
       if (!isDailyDataExpired(savedDailyDate, period)) {
         continue;
       }
 
       const characterNames = getRosterCharacterNames(rosterData, orderData);
       const resetDailyData = buildResetDailyData(characterNames, period);
+
+      // Preserve Thaemine if weekly reset hasn't happened yet
+      if (currentDailyData?.roster?.thaemine?.timestamp) {
+        const thaemineTime = new Date(currentDailyData.roster.thaemine.timestamp).getTime();
+        if (thaemineTime >= (weeklyPeriod?.start || 0) && thaemineTime < (weeklyPeriod?.end || 0)) {
+          resetDailyData.roster.thaemine = currentDailyData.roster.thaemine;
+        }
+      }
 
       await api.saveRoster?.(rosterId, {
         roster: {
@@ -1278,6 +1292,7 @@
       roster: {
         fieldBoss: defaultActivity(),
         chaosGate: defaultActivity(),
+        thaemine: defaultActivity(),
       },
     } satisfies DailyData;
   }
@@ -1301,6 +1316,7 @@
       roster: {
         fieldBoss: defaultActivity(),
         chaosGate: defaultActivity(),
+        thaemine: defaultActivity(),
       },
     } satisfies DailyData;
   }
@@ -1383,6 +1399,7 @@
     const rosterDaily = {
       fieldBoss: defaultActivity(raw?.roster?.fieldBoss),
       chaosGate: defaultActivity(raw?.roster?.chaosGate),
+      thaemine: defaultActivity(raw?.roster?.thaemine),
     };
 
     dailyData = {
@@ -1913,7 +1930,7 @@
     endCharacterDrag();
   }
 
-  async function toggleRosterDaily(rosterId: string, key: 'fieldBoss' | 'chaosGate') {
+  async function toggleRosterDaily(rosterId: string, key: 'fieldBoss' | 'chaosGate' | 'thaemine') {
     const targetRosterId = String(rosterId || '').trim();
     if (loading || !targetRosterId) return;
 
@@ -1926,14 +1943,20 @@
     const current = dailyState.roster?.[key] || defaultActivity();
     const nextCompleted = !current.completed;
 
+    let fallbackBoss = '';
+    if (key === 'fieldBoss') fallbackBoss = 'Sevek Atun';
+    else if (key === 'chaosGate') fallbackBoss = 'Chaos Gate';
+    else if (key === 'thaemine') fallbackBoss = 'Thaemine, Conqueror of Stars';
+
     dailyState.roster = {
       ...(dailyState.roster || {
         fieldBoss: defaultActivity(),
         chaosGate: defaultActivity(),
+        thaemine: defaultActivity(),
       }),
       [key]: defaultActivity({
         completed: nextCompleted,
-        boss: nextCompleted ? (key === 'fieldBoss' ? 'Sevek Atun' : 'Chaos Gate') : null,
+        boss: nextCompleted ? fallbackBoss : null,
         timestamp: nextCompleted ? new Date().toISOString() : null,
       }),
     };
@@ -2277,21 +2300,26 @@
       }
 
       const rosterNames = [...visibleCharacters];
-      const [fieldBossHit, chaosGateHit] = await Promise.all([
+      const [fieldBossHit, chaosGateHit, thaemineHit] = await Promise.all([
         api.getDailyFieldBoss?.(rosterNames),
         api.getDailyChaosGate?.(rosterNames),
+        api.getWeeklyThaemine?.(rosterNames),
       ]);
 
       const fieldBossActivity = normalizeApiActivity(fieldBossHit, 'Sevek Atun');
       const chaosGateActivity = normalizeApiActivity(chaosGateHit, 'Chaos Gate');
+      const thaemineActivity = normalizeApiActivity(thaemineHit, 'Thaemine, Conqueror of Stars');
+
       const currentRosterDaily = dailyData.roster || {
         fieldBoss: defaultActivity(),
         chaosGate: defaultActivity(),
+        thaemine: defaultActivity(),
       };
 
       dailyData.roster = {
         fieldBoss: fieldBossActivity.completed ? fieldBossActivity : currentRosterDaily.fieldBoss,
         chaosGate: chaosGateActivity.completed ? chaosGateActivity : currentRosterDaily.chaosGate,
+        thaemine: thaemineActivity.completed ? thaemineActivity : currentRosterDaily.thaemine,
       };
 
       roster = { ...roster, dailyData };
@@ -2402,11 +2430,11 @@
     timerInterval = setInterval(updateTimer, 1000);
   }
 
-  function getRosterDailyTooltip(key: 'fieldBoss' | 'chaosGate') {
+  function getRosterDailyTooltip(key: 'fieldBoss' | 'chaosGate' | 'thaemine') {
     return buildDailyTooltip(dailyData?.roster?.[key]);
   }
 
-  function getRosterDailyTooltipFrom(data: DailyData | null | undefined, key: 'fieldBoss' | 'chaosGate') {
+  function getRosterDailyTooltipFrom(data: DailyData | null | undefined, key: 'fieldBoss' | 'chaosGate' | 'thaemine') {
     return buildDailyTooltip(data?.roster?.[key]);
   }
 
@@ -2482,6 +2510,21 @@
             <div class="weekly-top-left">
               <h1 class="weekly-title">{card.rosterName}</h1>
               <div class="roster-dailies" aria-label="Roster dailies">
+                <button
+                  type="button"
+                  class="roster-daily-btn no-border large-icon"
+                  class:completed={Boolean(cardDailyData?.roster?.thaemine?.completed)}
+                  title={getRosterDailyTooltipFrom(cardDailyData, 'thaemine') || 'Toggle Thaemine'}
+                  aria-label="Toggle Thaemine"
+                  on:click={() => toggleRosterDaily(card.rosterId, 'thaemine')}
+                >
+                  {#if cardDailyData?.roster?.thaemine?.completed}
+                    <img src="./assets/icons/items/thaedone.png" alt="" aria-hidden="true" />
+                  {:else}
+                    <img src="./assets/icons/items/thaeundone.png" alt="" aria-hidden="true" />
+                  {/if}
+                </button>
+
                 <button
                   type="button"
                   class="roster-daily-btn"

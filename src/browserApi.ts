@@ -767,6 +767,16 @@ async function getDailyChaosGate(rosterNames: string[] = []): Promise<false | Da
   }
 }
 
+async function getWeeklyThaemine(rosterNames: string[] = []): Promise<false | DailyCompletion> {
+  if (!Array.isArray(rosterNames) || rosterNames.length === 0) return false;
+  try {
+    return await dbBridge.getWeeklyThaemine(rosterNames) as false | DailyCompletion;
+  } catch (err) {
+    console.error('Failed to read Thaemine from encounters.db', err);
+    return false;
+  }
+}
+
 async function fetchCharacterByName() {
   return null;
 }
@@ -813,6 +823,7 @@ const api: AppApi = {
   getDailyGuardianRaids,
   getDailyFieldBoss,
   getDailyChaosGate,
+  getWeeklyThaemine,
   getRosterList,
   getActiveRoster,
   createRoster,

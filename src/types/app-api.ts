@@ -89,6 +89,7 @@ export interface AppApi {
   getDailyGuardianRaids(characterName: string): Promise<false | { completed: true; boss: string; timestamp: number }>;
   getDailyFieldBoss(rosterNames: string[]): Promise<false | { completed: true; boss: string; timestamp: number }>;
   getDailyChaosGate(rosterNames: string[]): Promise<false | { completed: true; boss: string; timestamp: number }>;
+  getWeeklyThaemine(rosterNames: string[]): Promise<false | { completed: true; boss: string; timestamp: number }>;
 
   getCharactersFromDatabase(onProgress?: (message: string) => void): Promise<CharacterImportRow[]>;
 

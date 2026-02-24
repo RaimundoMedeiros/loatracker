@@ -130,6 +130,11 @@ class DbBridge {
     return this.#send('getDailyChaosGate', { rosterNames });
   }
 
+  async getWeeklyThaemine(rosterNames: string[]) {
+    await this.init();
+    return this.#send('getWeeklyThaemine', { rosterNames });
+  }
+
   async getCharactersFromDatabase(onProgress?: (msg: string) => void) {
     await this.init();
     this.#progressCallback = onProgress ?? null;

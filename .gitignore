@@ -16,3 +16,5 @@ supabase/
 
 # system
 Thumbs.db
+# Gemini CLI context file
+GEMINI.md

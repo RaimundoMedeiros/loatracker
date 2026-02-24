@@ -19,6 +19,7 @@ type HandlerPayloads = {
   getDailyGuardianRaids: { characterName?: string };
   getDailyFieldBoss: { rosterNames?: string[] };
   getDailyChaosGate: { rosterNames?: string[] };
+  getWeeklyThaemine: { rosterNames?: string[] };
   getCharactersFromDatabase: Record<string, never>;
 };
 
@@ -39,6 +40,7 @@ const TRACKED_WEEKLY_BOSSES = [
 const GUARDIAN_BOSSES = ['Argeos', 'Skolakia', 'Drextalas', 'Krathios', "Krathios's Tail"];
 const FIELD_BOSS_NAMES = ['Sevek Atun', 'Field Boss: Sevek Atun'];
 const CHAOS_GATE_NAMES = ['Soft Bean Legion Honey-Filled Tricolor Sweetcake', 'Darkness Legion Kiril'];
+const THAEMINE_BOSS_NAME = 'Thaemine, Conqueror of Stars';
 const CHARACTER_IMPORT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
 const CLASS_ALIASES: Record<string, string> = {
@@ -482,6 +484,34 @@ async function handleGetCharactersFromDatabase() {
   return characters;
 }
 
+async function handleGetWeeklyThaemine({ rosterNames }: HandlerPayloads['getWeeklyThaemine']) {
+  if (!Array.isArray(rosterNames) || !rosterNames.length) return false;
+
+  const { start, end } = getWeeklyResetPeriod();
+  const playerPh = rosterNames.map(() => '?').join(', ');
+  const sql = `
+    SELECT current_boss, fight_start
+    FROM encounter_preview
+    WHERE current_boss = ?
+      AND LOWER(local_player) IN (${playerPh})
+      AND cleared = 1
+      AND fight_start >= ?
+      AND fight_start < ?
+    ORDER BY fight_start DESC
+    LIMIT 1`;
+
+  const lowered = rosterNames.map((name) => String(name || '').toLowerCase());
+  const rows = await queryObjects(sql, [THAEMINE_BOSS_NAME, ...lowered, start, end]);
+  if (!rows.length) return false;
+  const row = rows[0];
+
+  return {
+    completed: true,
+    boss: row.current_boss,
+    timestamp: Number(row.fight_start),
+  };
+}
+
 const HANDLERS: HandlerMap = {
   init: async ({ file }) => {
     if (!file) throw new Error('init requires a File object in payload.file');
@@ -496,6 +526,7 @@ const HANDLERS: HandlerMap = {
   getDailyGuardianRaids: handleGetDailyGuardianRaids,
   getDailyFieldBoss: handleGetDailyFieldBoss,
   getDailyChaosGate: handleGetDailyChaosGate,
+  getWeeklyThaemine: handleGetWeeklyThaemine,
   getCharactersFromDatabase: handleGetCharactersFromDatabase,
 };
 

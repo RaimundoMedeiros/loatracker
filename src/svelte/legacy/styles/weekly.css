@@ -265,6 +265,31 @@
    border-color: rgba(76, 175, 80, 0.4);
 }
 
+/* Thaemine specific overrides */
+.roster-daily-btn.no-border {
+   border: none !important;
+   background: transparent !important;
+   box-shadow: none !important;
+   padding: 0;
+   min-width: unset;
+   margin-right: 8px;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+}
+
+.roster-daily-btn.large-icon img {
+   width: 42px !important;
+   height: 42px !important;
+   transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+   filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+
+.roster-daily-btn.large-icon:hover img {
+   transform: scale(1.1);
+   filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
+}
+
 .weekly-actions {
    display: flex;
    align-items: center;
