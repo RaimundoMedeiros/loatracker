@@ -39,7 +39,12 @@ const TRACKED_WEEKLY_BOSSES = [
 
 const GUARDIAN_BOSSES = ['Argeos', 'Skolakia', 'Drextalas', 'Krathios', "Krathios's Tail"];
 const FIELD_BOSS_NAMES = ['Sevek Atun', 'Field Boss: Sevek Atun'];
-const CHAOS_GATE_NAMES = ['Soft Bean Legion Honey-Filled Tricolor Sweetcake', 'Darkness Legion Kiril'];
+const CHAOS_GATE_NAMES = [
+  'Soft Bean Legion Honey-Filled Tricolor Sweetcake',
+  'Darkness Legion Kiril',
+  'Phantom Legion Chess King',
+  'Mayhem Legion Stella'
+];
 const THAEMINE_BOSS_NAME = 'Thaemine, Conqueror of Stars';
 const CHARACTER_IMPORT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 

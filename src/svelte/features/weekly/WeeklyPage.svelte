@@ -2514,8 +2514,8 @@
                   type="button"
                   class="roster-daily-btn no-border large-icon"
                   class:completed={Boolean(cardDailyData?.roster?.thaemine?.completed)}
-                  title={getRosterDailyTooltipFrom(cardDailyData, 'thaemine') || 'Toggle Thaemine'}
-                  aria-label="Toggle Thaemine"
+                  title={getRosterDailyTooltipFrom(cardDailyData, 'thaemine') || 'Extreme Thaemine'}
+                  aria-label={cardDailyData?.roster?.thaemine?.completed ? 'Toggle Thaemine' : 'Extreme Thaemine'}
                   on:click={() => toggleRosterDaily(card.rosterId, 'thaemine')}
                 >
                   {#if cardDailyData?.roster?.thaemine?.completed}
