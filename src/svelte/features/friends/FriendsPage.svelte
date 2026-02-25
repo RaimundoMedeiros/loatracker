@@ -50,6 +50,9 @@
   let selfCodeVisible = false;
   let selfPinVisible = false;
   let setupVisible = false;
+  let _disableUpload = true;
+  let _uploadTitle = '';
+  let _disableSetupUpload = true;
   let editingAliasFriendId = '';
   let aliasDraft = '';
   let rows: FriendRow[] = [];
@@ -205,11 +208,27 @@
   }
 
   function getMaskedSelfCode() {
-    return selfCodeVisible ? (selfCode || '-') : (selfCode ? '******' : '-');
+    return selfCodeVisible ? (selfCode || '-') : '******';
   }
 
   function getSelfPinInputType(): 'text' | 'password' {
     return selfPinVisible ? 'text' : 'password';
+  }
+
+  // Svelte 4 only tracks variables referenced DIRECTLY in $: expressions,
+  // not inside function bodies. Inline the expressions or void-reference the deps.
+  $: _maskedSelfCode = selfCodeVisible ? (selfCode || '-') : '******';
+  $: _selfPinInputType = selfPinVisible ? 'text' : 'password';
+  $: {
+    // Reference every reactive variable these helpers depend on so Svelte re-runs the block.
+    void selfPin; void cooldownNow; void isBusy; void uploadCooldownUntil;
+    _disableUpload = getDisableUpload();
+    _uploadTitle = getUploadTitle();
+  }
+  $: {
+    // Setup modal: no cooldown gate, only busy + PIN check
+    void selfPin; void isBusy; void friendsConfig;
+    _disableSetupUpload = isBusy || getActivePin().length < MIN_PIN_LENGTH;
   }
 
   async function initialize() {
@@ -1036,6 +1055,63 @@
     setBusy(false);
   }
 
+  async function handleSetupUpload() {
+    if (!friendsService) return;
+    const service = friendsService;
+
+    const currentSelfCode = service.getSelfRosterCode();
+    if (!currentSelfCode) {
+      showToast('Select a roster before uploading weekly data.', TOAST_TYPES.WARNING);
+      return;
+    }
+
+    if (!service.isConfigured()) {
+      showToast('Configure Supabase env vars before uploading.', TOAST_TYPES.WARNING);
+      return;
+    }
+
+    const pin = getActivePin();
+    if (!pin || pin.length < MIN_PIN_LENGTH) {
+      showToast('Set your PIN in Friends Roster before uploading.', TOAST_TYPES.WARNING);
+      return;
+    }
+
+    setBusy(true);
+    uploading = true;
+
+    const result = await withAsyncError(
+      () => service.uploadSelfWeekly(pin),
+      {
+        code: ERROR_CODES.FRIENDS.UPLOAD_FAILED,
+        severity: 'error',
+        context: {
+          phase: 'handleSetupUpload',
+          action: 'setup-upload-weekly',
+          rosterCode: currentSelfCode,
+        },
+        showToast: false,
+      }
+    );
+
+    if (!result) {
+      showToast('Weekly upload failed.', TOAST_TYPES.ERROR);
+      uploading = false;
+      setBusy(false);
+      return;
+    }
+
+    persistLastUploadFingerprint(currentSelfCode, result.fingerprint);
+
+    if (result.skipped) {
+      showToast('No changes detected. Upload skipped.', TOAST_TYPES.INFO);
+    } else {
+      showToast(`Weekly uploaded (${result.uploaded} characters).`, TOAST_TYPES.SUCCESS);
+    }
+
+    uploading = false;
+    setBusy(false);
+  }
+
   async function addFriend() {
     if (!friendsService) return;
     const service = friendsService;
@@ -1326,8 +1402,8 @@
           id="friends-upload-btn"
           class="header-icon-btn"
           type="button"
-          disabled={getDisableUpload() || loading || !configured}
-          title={getUploadTitle()}
+          disabled={_disableUpload || loading || !configured}
+          title={_uploadTitle}
           on:click={handleManualUpload}
         >
           <span class="btn-label">{uploading ? 'Uploading...' : 'Upload Weekly'}</span>
@@ -1371,18 +1447,18 @@
 
   <FriendsSetupModal
     visible={setupVisible}
-    maskedSelfCode={getMaskedSelfCode()}
+    maskedSelfCode={_maskedSelfCode}
     {selfHeatmapColor}
     {selfCodeVisible}
     copyFeedbackActive={copyFeedbackUntil > Date.now()}
     copyLabel={getCopyLabel()}
     {selfPin}
-    selfPinInputType={getSelfPinInputType()}
+    selfPinInputType={_selfPinInputType}
     {selfPinVisible}
-    disableUpload={getDisableUpload()}
+    disableUpload={_disableSetupUpload}
     {loading}
     {configured}
-    uploadTitle={getUploadTitle()}
+    uploadTitle={_disableSetupUpload ? 'Set your PIN first' : 'Upload your weekly to friends sync'}
     {uploading}
     {addRosterCode}
     {addPin}
@@ -1399,7 +1475,7 @@
     onSelfPinInput={updateSelfPinInput}
     onSelfPinChange={() => updateSelfPin(selfPin)}
     onToggleSelfPinVisibility={toggleSelfPinVisibility}
-    onUpload={handleManualUpload}
+    onUpload={handleSetupUpload}
     onAddRosterCodeInput={updateAddRosterCode}
     onAddPinInput={updateAddPin}
     onAddAliasInput={updateAddAlias}

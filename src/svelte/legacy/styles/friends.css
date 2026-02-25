@@ -1411,18 +1411,27 @@
     min-width: 148px;
     padding: 0 14px;
     border-radius: var(--radius-md);
-    border: 1px solid color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
+    border: 1px solid color-mix(in srgb, var(--color-primary) 70%, var(--color-border));
     background: linear-gradient(
         135deg,
-        color-mix(in srgb, var(--color-primary) 76%, var(--color-surface)) 0%,
-        color-mix(in srgb, var(--color-primary-dark) 74%, var(--color-surface)) 100%
+        color-mix(in srgb, var(--color-primary) 96%, white) 0%,
+        color-mix(in srgb, var(--color-primary-dark) 90%, white) 100%
     );
     color: var(--color-bg-dark);
     font-weight: 700;
     letter-spacing: 0.2px;
     cursor: pointer;
     transition: background var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-primary) 24%, transparent), var(--shadow-xs);
+    box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--color-primary) 55%, transparent),
+        0 0 12px 2px color-mix(in srgb, var(--color-primary) 35%, transparent),
+        var(--shadow-xs);
+    animation: setup-upload-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes setup-upload-pulse {
+    0%, 100% { box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-primary) 55%, transparent), 0 0 10px 2px color-mix(in srgb, var(--color-primary) 30%, transparent), var(--shadow-xs); }
+    50%       { box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-primary) 80%, transparent), 0 0 20px 5px color-mix(in srgb, var(--color-primary) 50%, transparent), var(--shadow-sm); }
 }
 
 #friends-setup-modal .friends-profile-actions {
@@ -1435,15 +1444,20 @@
 
 #friends-setup-modal .friends-profile-upload-btn:hover:enabled {
     transform: translateY(-1px);
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-primary) 34%, transparent), var(--shadow-sm);
+    box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--color-primary) 80%, transparent),
+        0 0 24px 6px color-mix(in srgb, var(--color-primary) 55%, transparent),
+        var(--shadow-md);
+    animation: none;
 }
 
 #friends-setup-modal .friends-profile-upload-btn:disabled {
-    opacity: 0.56;
+    opacity: 0.42;
     cursor: not-allowed;
     transform: none;
     box-shadow: none;
     border-color: color-mix(in srgb, var(--color-border-light) 58%, var(--color-border));
+    animation: none;
 }
 
 #friends-setup-modal .friends-add-form input {
