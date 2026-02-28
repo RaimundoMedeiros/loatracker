@@ -13,6 +13,12 @@
     overflow: visible;
 }
 
+/* Custom tab: allow horizontal scroll when table is wider than viewport */
+#custom-tab.tab-content {
+    max-width: 1200px;
+    overflow-x: auto;
+}
+
 #friends-tab.tab-content {
     max-width: 1620px;
     width: min(1620px, 100%);

@@ -12,6 +12,7 @@ export type CustomColumn = {
 export type CustomColumnsState = {
   columns: CustomColumn[];
   columnOrder: string[];
+  colWidths?: Record<string, number>;
 };
 
 export type CustomTabValues = {
@@ -59,11 +60,14 @@ export function generateColumnId(): string {
 function parseColumnsState(saved: Partial<CustomColumnsState>): CustomColumnsState {
   const columns = Array.isArray(saved.columns) ? (saved.columns as CustomColumn[]) : [];
   const columnOrder = Array.isArray(saved.columnOrder) ? (saved.columnOrder as string[]) : [];
+  const colWidths = (saved.colWidths && typeof saved.colWidths === 'object')
+    ? saved.colWidths as Record<string, number>
+    : undefined;
   const ids = new Set(columnOrder);
   for (const col of columns) {
     if (!ids.has(col.id)) columnOrder.push(col.id);
   }
-  return { columns, columnOrder };
+  return { columns, columnOrder, ...(colWidths ? { colWidths } : {}) };
 }
 
 export function loadColumns(rosterId: string): CustomColumnsState {
@@ -109,6 +113,12 @@ export function saveValues(rosterId: string, values: CustomTabValues): void {
   writeJSON(valuesKey(rosterId), values, inMemoryValues);
 }
 
+export function resetValues(rosterId: string): CustomTabValues {
+  const empty: CustomTabValues = { perCharacter: {}, global: {} };
+  writeJSON(valuesKey(rosterId), empty, inMemoryValues);
+  return empty;
+}
+
 /** Returns columns sorted by their order array. */
 export function orderedColumns(state: CustomColumnsState): CustomColumn[] {
   const byId = new Map(state.columns.map((col) => [col.id, col]));
@@ -125,8 +135,8 @@ export function reorderColumns(columnOrder: string[], draggedId: string, targetI
   const from = next.indexOf(draggedId);
   const to = next.indexOf(targetId);
   if (from < 0 || to < 0 || from === to) return next;
-  next.splice(from, 1);
-  next.splice(to, 0, draggedId);
+  // True swap: dragged takes target's position and vice-versa
+  [next[from], next[to]] = [next[to], next[from]];
   return next;
 }
 
