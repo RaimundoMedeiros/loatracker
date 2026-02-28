@@ -14,8 +14,8 @@
   import RosterSwitcher from './components/RosterSwitcher.svelte';
   import { rosterChangeVersion } from './stores/rosterSync';
 
-  const ROUTES = ['weekly', 'roster', 'friends', 'settings', 'wizard', 'howto'];
-  const MAIN_ROUTES = ['weekly', 'roster', 'friends'] as const;
+  const ROUTES = ['weekly', 'roster', 'friends', 'custom', 'settings', 'wizard', 'howto'];
+  const MAIN_ROUTES = ['weekly', 'roster', 'friends', 'custom'] as const;
   const MODAL_ROUTES = ['settings', 'wizard', 'howto'] as const;
   type AppRoute = (typeof ROUTES)[number];
   type ModalRoute = (typeof MODAL_ROUTES)[number];
@@ -54,6 +54,7 @@
   let weeklyPagePromise: Promise<any> | null = null;
   let rosterPagePromise: Promise<any> | null = null;
   let friendsPagePromise: Promise<any> | null = null;
+  let customPagePromise: Promise<any> | null = null;
   let settingsPagePromise: Promise<any> | null = null;
   let wizardPagePromise: Promise<any> | null = null;
   let howToPagePromise: Promise<any> | null = null;
@@ -71,6 +72,11 @@
   function loadFriendsPage() {
     friendsPagePromise ??= import('./features/friends/FriendsPage.svelte');
     return friendsPagePromise;
+  }
+
+  function loadCustomTabPage() {
+    customPagePromise ??= import('./features/custom/CustomTabPage.svelte');
+    return customPagePromise;
   }
 
   function loadSettingsPage() {
@@ -93,7 +99,7 @@
   }
 
   function asMainRoute(route: AppRoute): MainRoute {
-    if (route === 'roster' || route === 'friends') return route;
+    if (route === 'roster' || route === 'friends' || route === 'custom') return route;
     return 'weekly';
   }
 
@@ -202,6 +208,7 @@
       '#friends-setup-modal',
       '#friends-heatmap-modal',
       '#column-settings-modal',
+      '#custom-column-settings-modal',
       '#settings-modal',
       '#howto-modal',
       '#wizard-preview-modal',
@@ -770,14 +777,25 @@
       <button
         id={getTabButtonId(route)}
         class="tab-button"
+        class:icon-tab={route === 'custom'}
         class:active={activeMainRoute === route}
         data-tab={route}
         role="tab"
         aria-selected={activeMainRoute === route}
         aria-controls={`${route}-tab`}
+        aria-label={route === 'custom' ? 'Custom Tab' : undefined}
+        title={route === 'custom' ? 'Custom Tab' : undefined}
         on:click={() => goTo(route)}
       >
-        {route === 'weekly' ? 'Weekly Tracker' : route === 'roster' ? 'Roster Management' : 'Friends Roster(WIP)'}
+        {#if route === 'custom'}
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M2 6h4"/><path d="M2 10h4"/><path d="M2 14h4"/><path d="M2 18h4"/>
+            <rect x="4" y="2" width="16" height="20" rx="2"/>
+            <path d="M9 8h8"/><path d="M9 12h8"/><path d="M9 16h5"/>
+          </svg>
+        {:else}
+          {route === 'weekly' ? 'Weekly Tracker' : route === 'roster' ? 'Roster Management' : 'Friends Roster(WIP)'}
+        {/if}
       </button>
     {/each}
     </div>
@@ -810,6 +828,10 @@
   {:else if activeMainRoute === 'friends'}
     {#await loadFriendsPage() then friendsPageModule}
       <svelte:component this={friendsPageModule.default} />
+    {/await}
+  {:else if activeMainRoute === 'custom'}
+    {#await loadCustomTabPage() then customPageModule}
+      <svelte:component this={customPageModule.default} />
     {/await}
   {:else}
     <section class="tab-content active" id={`${activeMainRoute}-tab`} aria-live="polite">

@@ -227,8 +227,17 @@
 
 .tabs {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: var(--spacing-xs);
+    overflow-x: auto;
+}
+
+.tab-button.icon-tab {
+    padding: var(--spacing-md);
+    min-width: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .tab-button {
