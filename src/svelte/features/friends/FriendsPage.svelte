@@ -617,16 +617,28 @@
 
     if (!visible) {
       if (done) {
-        return { className: 'state-hidden-done', text: '✓', label: 'Completed (hidden from gold)' };
+        const bits = ((character.diffMask || 0) >> (raidIndex * 2)) & 0b11;
+        const cls = bits === 2 ? 'diff-hard' : 'diff-normal';
+        const label = bits === 2 ? 'Hard' : bits === 1 ? 'Normal' : 'Solo';
+        return { className: `state-hidden-done ${cls}`, text: '✓', label: `Completed ${label} (hidden from gold)` };
       }
-      return { className: 'state-none', text: '-', label: 'Hidden for this character' };
+      const bits = ((character.maxDiffMask || 0) >> (raidIndex * 2)) & 0b11;
+      const cls = bits === 2 ? 'diff-hard' : 'diff-normal';
+      const label = bits === 2 ? 'Hard' : 'Normal';
+      return { className: `state-none ${cls}`, text: '-', label: `Hidden · ${label} available` };
     }
 
     if (done) {
-      return { className: 'state-self-done', text: '✓', label: 'Completed' };
+      const bits = ((character.diffMask || 0) >> (raidIndex * 2)) & 0b11;
+      const cls = bits === 2 ? 'diff-hard' : 'diff-normal';
+      const label = bits === 2 ? 'Hard' : bits === 1 ? 'Normal' : 'Solo';
+      return { className: `state-self-done ${cls}`, text: '✓', label: `Completed (${label})` };
     }
 
-    return { className: 'state-self-available', text: '●', label: 'Available and not completed' };
+    const bits = ((character.maxDiffMask || 0) >> (raidIndex * 2)) & 0b11;
+    const cls = bits === 2 ? 'diff-hard' : 'diff-normal';
+    const label = bits === 2 ? 'Hard' : 'Normal';
+    return { className: `state-self-available ${cls}`, text: '●', label: `Available · ${label}` };
   }
 
   function getRosterSummaryCounts(characters: FriendSnapshot['characters'], raidIndex: number) {
@@ -645,6 +657,38 @@
     }, 0);
 
     return { doneCount, visibleCount };
+  }
+
+  function getRosterSummaryTooltip(characters: FriendSnapshot['characters'], raidIndex: number): string {
+    const safeChars = Array.isArray(characters) ? characters : [];
+    if (!safeChars.length) return 'No characters';
+
+    const rows = safeChars.map(char => {
+      const done    = ((char?.raidMask    || 0) & (1 << raidIndex)) !== 0;
+      const visible = ((char?.visibleMask || 0) & (1 << raidIndex)) !== 0;
+      const name    = (char?.name || '?').slice(0, 13).padEnd(14);
+
+      if (done) {
+        const bits = ((char?.diffMask || 0) >> (raidIndex * 2)) & 0b11;
+        const diff = (bits === 2 ? 'Hard' : bits === 1 ? 'Normal' : 'Solo').padEnd(8);
+        const icon = visible ? '✓' : '(✓)';
+        return `${name}${diff}${icon}`;
+      }
+
+      if (visible) {
+        const bits = ((char?.maxDiffMask || 0) >> (raidIndex * 2)) & 0b11;
+        const diff = (bits === 2 ? 'Hard' : 'Normal').padEnd(8);
+        return `${name}${diff}●`;
+      }
+
+      // hidden and not done — show max achievable diff
+      const bits = ((char?.maxDiffMask || 0) >> (raidIndex * 2)) & 0b11;
+      const diff = (bits === 2 ? 'Hard' : 'Normal').padEnd(8);
+      return `${name}${diff}—`;
+    });
+    const header = 'Character'.padEnd(14) + 'Diff'.padEnd(8) + 'Status';
+    const sep = '-'.repeat(30);
+    return [header, sep, ...rows].join('\n');
   }
 
   function getDefaultHeatmapColor(seed = '') {
@@ -1497,6 +1541,7 @@
     {getRaidConfigAt}
     {getRosterSummaryCounts}
     {resolveRosterSummaryState}
+    {getRosterSummaryTooltip}
     {resolveDetailedState}
     onClose={() => toggleHeatmapView(false)}
   />

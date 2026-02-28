@@ -43,6 +43,8 @@ export function sanitizeCachedSnapshot(rawSnapshot: unknown): FriendSnapshot | n
         sortIndex: Number.isInteger(character?.sortIndex) ? character.sortIndex : index,
         raidMask: Number(character?.raidMask) || 0,
         visibleMask: Number(character?.visibleMask) || 0,
+        diffMask: Number(character?.diffMask) || 0,
+        maxDiffMask: Number(character?.maxDiffMask) || 0,
       }))
       .filter((character) => Boolean(character.name))
     : [];

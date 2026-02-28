@@ -9,6 +9,7 @@
   export let getRaidConfigAt: (raidIndex: number) => { id?: string } | undefined;
   export let getRosterSummaryCounts: (characters: HeatmapGroup['characters'], raidIndex: number) => { doneCount: number; visibleCount: number };
   export let resolveRosterSummaryState: (doneCount: number, visibleCount: number) => RaidCellState;
+  export let getRosterSummaryTooltip: (characters: HeatmapGroup['characters'], raidIndex: number) => string;
   export let resolveDetailedState: (character: HeatmapDetailRow['character'], raidIndex: number) => RaidCellState;
   export let onClose: () => void;
 
@@ -92,7 +93,7 @@
                       {@const state = resolveRosterSummaryState(counts.doneCount, counts.visibleCount)}
                       <td
                         class={`friends-heatmap-cell ${state.className} ${shouldHighlightRow(rowId, summaryHoveredRow) ? 'is-hover-row' : ''} ${shouldHighlightCol(colId, summaryHoveredCol) ? 'is-hover-col' : ''}`}
-                        title={state.label}
+                        title={getRosterSummaryTooltip(group.characters, raidIndex)}
                         on:pointerenter={() => { summaryHoveredRow = rowId; summaryHoveredCol = colId; }}
                       >
                         {state.text}

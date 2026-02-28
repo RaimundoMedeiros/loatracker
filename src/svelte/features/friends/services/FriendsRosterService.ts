@@ -10,6 +10,8 @@ type CharacterSnapshot = {
   raidMask: number;
   visibleMask: number;
   hiddenMask?: number;
+  diffMask?: number;
+  maxDiffMask?: number;
 };
 
 type SelfSnapshot = {
@@ -185,6 +187,8 @@ export class FriendsRosterService {
         let raidMask = 0;
         let hiddenMask = 0;
         let visibleMask = 0;
+        let diffMask = 0;
+        let maxDiffMask = 0;
 
         bosses.forEach((boss, index) => {
           const raidId = RAID_CONFIG[index]?.id;
@@ -202,7 +206,11 @@ export class FriendsRosterService {
 
           if (bossData?.cleared && isVisibleInColumns && isEligible) {
             raidMask |= (1 << index);
+            diffMask |= (this.encodeDiff(bossData.difficulty) << (index * 2));
           }
+
+          const raidCfg = RAID_CONFIG[index] as { nm?: number; hm?: number };
+          maxDiffMask |= (this.computeMaxDiffBits(charInfo?.ilvl || 0, raidCfg) << (index * 2));
         });
 
         return {
@@ -211,6 +219,8 @@ export class FriendsRosterService {
           raidMask,
           visibleMask,
           hiddenMask,
+          diffMask,
+          maxDiffMask,
         };
       });
 
@@ -255,6 +265,19 @@ export class FriendsRosterService {
     }
 
     return null;
+  }
+
+  private encodeDiff(difficulty: unknown): number {
+    const d = String(difficulty || '');
+    if (d === 'Hard') return 2;
+    if (d === 'Normal') return 1;
+    return 0;
+  }
+
+  private computeMaxDiffBits(ilvl: number, raidCfg: { nm?: number; hm?: number }): number {
+    if (raidCfg?.hm && ilvl >= raidCfg.hm) return 2;
+    if (raidCfg?.nm && ilvl >= raidCfg.nm) return 1;
+    return 0;
   }
 
   private toTitleCase(value: unknown): string {
@@ -308,6 +331,8 @@ export class FriendsRosterService {
       sort_index: Number.isInteger(character.sortIndex) ? character.sortIndex : 999,
       raid_mask: character.raidMask & visibleRaidMask,
       visible_mask: character.visibleMask & visibleRaidMask,
+      diff_mask: character.diffMask || 0,
+      max_diff_mask: character.maxDiffMask || 0,
     }));
 
     if (!rows.length) {
@@ -382,6 +407,8 @@ export class FriendsRosterService {
         visibleMask: ((row.visible_mask === null || row.visible_mask === undefined)
           ? visibleRaidMask
           : (Number(row.visible_mask) || 0)) & visibleRaidMask,
+        diffMask: Number(row.diff_mask) || 0,
+        maxDiffMask: Number(row.max_diff_mask) || 0,
       }))
       .sort((a: CharacterSnapshot, b: CharacterSnapshot) => {
         if (a.sortIndex !== b.sortIndex) {

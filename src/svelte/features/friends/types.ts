@@ -11,6 +11,8 @@ export interface FriendCharacterSnapshot {
   sortIndex: number;
   raidMask: number;
   visibleMask: number;
+  diffMask?: number;
+  maxDiffMask?: number;
 }
 
 export interface FriendSnapshot {

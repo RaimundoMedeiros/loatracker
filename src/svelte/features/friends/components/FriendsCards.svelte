@@ -10,6 +10,20 @@
   export let resolveCardSyncState: (card: FriendGridCard) => SyncBadgeState;
   export let getRaidConfigAt: (raidIndex: number) => { id?: string } | undefined;
 
+  function decodeDiff(mask: number, raidIndex: number): { cls: string; label: string } {
+    const bits = ((mask || 0) >> (raidIndex * 2)) & 0b11;
+    if (bits === 2) return { cls: 'diff-hard', label: 'Hard' };
+    if (bits === 1) return { cls: 'diff-normal', label: 'Normal' };
+    return { cls: 'diff-normal', label: 'Solo' };
+  }
+
+  function decodeMaxDiff(mask: number, raidIndex: number): { cls: string; label: string } {
+    const bits = ((mask || 0) >> (raidIndex * 2)) & 0b11;
+    return bits === 2
+      ? { cls: 'diff-hard', label: 'Hard' }
+      : { cls: 'diff-normal', label: 'Normal' };
+  }
+
   function resolveRaidCellState(character: FriendGridCard['characters'][number], raidIndex: number) {
     const hasVisibleMask = character.visibleMask !== null && character.visibleMask !== undefined;
     const visible = hasVisibleMask ? (((character.visibleMask || 0) & (1 << raidIndex)) !== 0) : true;
@@ -19,32 +33,36 @@
     const done = !ignored && doneRaw;
 
     if (hiddenDone) {
+      const diff = decodeDiff(character.diffMask || 0, raidIndex);
       return {
-        className: 'friends-raid-cell is-hidden-done',
-        title: 'Completed (hidden from gold)',
+        className: `friends-raid-cell is-hidden-done ${diff.cls}`,
+        title: `Completed ${diff.label} (hidden from gold)`,
         text: '✓',
       };
     }
 
     if (ignored) {
+      const diff = decodeMaxDiff(character.maxDiffMask || 0, raidIndex);
       return {
-        className: 'friends-raid-cell is-ignored',
-        title: 'Hidden for this character',
+        className: `friends-raid-cell is-ignored ${diff.cls}`,
+        title: `Hidden · ${diff.label} available`,
         text: '-',
       };
     }
 
     if (done) {
+      const diff = decodeDiff(character.diffMask || 0, raidIndex);
       return {
-        className: 'friends-raid-cell is-done',
-        title: 'Completed',
+        className: `friends-raid-cell is-done ${diff.cls}`,
+        title: `Completed (${diff.label})`,
         text: '✓',
       };
     }
 
+    const diff = decodeMaxDiff(character.maxDiffMask || 0, raidIndex);
     return {
-      className: 'friends-raid-cell is-pending',
-      title: 'Available and not completed',
+      className: `friends-raid-cell is-pending ${diff.cls}`,
+      title: `Available · ${diff.label}`,
       text: '●',
     };
   }

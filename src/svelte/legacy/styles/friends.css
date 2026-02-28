@@ -224,8 +224,12 @@
 }
 
 .friends-heatmap-cell {
+    --diff-color: #DAE5F4;
     font-weight: 700;
 }
+
+.friends-heatmap-cell.diff-hard   { --diff-color: #dca147; text-shadow: -1px -1px 0 rgba(0,0,0,0.55), 1px -1px 0 rgba(0,0,0,0.55), -1px 1px 0 rgba(0,0,0,0.55), 1px 1px 0 rgba(0,0,0,0.55); }
+.friends-heatmap-cell.diff-normal { --diff-color: #DAE5F4; }
 
 .friends-heatmap-cell.state-match {
     background: color-mix(in srgb, #2abf9e 32%, var(--color-bg-darker));
@@ -250,22 +254,22 @@
 
 .friends-heatmap-cell.state-none {
     background: #0a0a0a;
-    color: var(--color-text-muted);
+    color: color-mix(in srgb, var(--diff-color) 50%, var(--color-text-muted));
 }
 
 .friends-heatmap-cell.state-self-done {
     background: color-mix(in srgb, var(--color-success) 30%, var(--color-bg-darker));
-    color: var(--color-text);
+    color: var(--diff-color);
 }
 
 .friends-heatmap-cell.state-self-available {
     background: #0a0a0a;
-    color: var(--color-text);
+    color: var(--diff-color);
 }
 
 .friends-heatmap-cell.state-hidden-done {
     background: color-mix(in srgb, var(--color-success) 8%, var(--color-bg-darker));
-    color: color-mix(in srgb, var(--color-success) 38%, var(--color-text-muted));
+    color: color-mix(in srgb, var(--diff-color) 38%, var(--color-text-muted));
 }
 
 .friends-heatmap-table .is-hover-row {
@@ -483,28 +487,32 @@
 }
 
 .friends-raid-cell {
+    --diff-color: #DAE5F4;
     font-weight: 700;
     transition: background var(--transition-fast), color var(--transition-fast);
     letter-spacing: 0.2px;
 }
 
+.friends-raid-cell.diff-hard   { --diff-color: #dca147; text-shadow: -1px -1px 0 rgba(0,0,0,0.55), 1px -1px 0 rgba(0,0,0,0.55), -1px 1px 0 rgba(0,0,0,0.55), 1px 1px 0 rgba(0,0,0,0.55); }
+.friends-raid-cell.diff-normal { --diff-color: #DAE5F4; }
+
 .friends-raid-cell.is-pending {
-    color: var(--color-text-muted);
+    color: var(--diff-color);
     background: var(--color-bg-darker);
 }
 
 .friends-raid-cell.is-done {
-    color: var(--color-text);
+    color: var(--diff-color);
     background: color-mix(in srgb, var(--color-success) 35%, var(--color-bg-darker));
 }
 
 .friends-raid-cell.is-ignored {
-    color: var(--color-text-muted);
+    color: color-mix(in srgb, var(--diff-color) 50%, var(--color-text-muted));
     background: var(--color-surface);
 }
 
 .friends-raid-cell.is-hidden-done {
-    color: color-mix(in srgb, var(--color-success) 40%, var(--color-text-muted));
+    color: color-mix(in srgb, var(--diff-color) 40%, var(--color-text-muted));
     background: color-mix(in srgb, var(--color-success) 8%, var(--color-surface));
     opacity: 0.62;
 }
@@ -1776,3 +1784,4 @@
         flex-direction: column;
     }
 }
+
