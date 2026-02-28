@@ -1,6 +1,20 @@
 export type ColumnType = 'checkbox' | 'text' | 'textarea' | 'counter';
 export type ColumnScope = 'per-character' | 'global';
 
+export const TYPE_COLORS: Record<ColumnType, string> = {
+  checkbox: '#4CAF50',
+  text:     '#2196F3',
+  textarea: '#ff9800',
+  counter:  '#9c27b0',
+};
+
+export const TYPE_ICONS: Record<ColumnType, string> = {
+  checkbox: '✓',
+  text:     'T',
+  textarea: '≡',
+  counter:  '#',
+};
+
 export type CustomColumn = {
   id: string;
   title: string;

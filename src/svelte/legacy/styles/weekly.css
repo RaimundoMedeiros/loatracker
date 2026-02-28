@@ -828,3 +828,109 @@ tr:nth-child(even) {
       padding: 1px 2px;
    }
 }
+
+
+/* Custom Tab columns surfaced in the Weekly Tracker */
+
+.custom-weekly-col-header {
+   font-weight: 700;
+   color: var(--color-text);
+   border-bottom: 3px solid var(--color-primary);
+   white-space: nowrap;
+   max-width: 120px;
+   overflow: hidden;
+   text-overflow: ellipsis;
+}
+
+.custom-weekly-col-cell {
+   text-align: center;
+   vertical-align: middle;
+   padding: 4px 6px;
+}
+
+.custom-weekly-input {
+   background: var(--color-surface);
+   border: 1px solid var(--color-border);
+   border-radius: var(--radius-sm);
+   color: var(--color-text);
+   font-size: 0.85rem;
+   padding: 3px 5px;
+   width: 100%;
+   box-sizing: border-box;
+   transition: border-color var(--transition-fast);
+}
+
+.custom-weekly-input:focus {
+   outline: none;
+   border-color: var(--color-primary);
+}
+
+.custom-weekly-counter {
+   max-width: 72px;
+   text-align: center;
+}
+
+.custom-weekly-text {
+   max-width: 120px;
+}
+
+.custom-weekly-counter-widget {
+   display: inline-flex;
+   align-items: center;
+   gap: 0;
+   background: var(--color-bg-dark);
+   border: 1px solid var(--color-border);
+   border-radius: var(--radius-sm);
+   overflow: hidden;
+}
+
+.custom-weekly-counter-btn {
+   width: 22px;
+   height: 26px;
+   border: none;
+   border-radius: 0;
+   background: transparent;
+   color: var(--color-text-muted);
+   cursor: pointer;
+   font-size: 1rem;
+   line-height: 1;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   padding: 0;
+   flex-shrink: 0;
+   font-family: inherit;
+   transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.custom-weekly-counter-btn:hover {
+   background: color-mix(in srgb, var(--color-primary) 18%, transparent);
+   color: var(--color-primary);
+}
+
+.custom-weekly-counter-input {
+   width: 34px;
+   text-align: center;
+   padding: 2px 0;
+   background: transparent;
+   border: none;
+   border-left: 1px solid var(--color-border);
+   border-right: 1px solid var(--color-border);
+   color: var(--color-text);
+   font-size: var(--font-sm);
+   font-weight: 600;
+   font-family: inherit;
+   appearance: textfield;
+   -moz-appearance: textfield;
+}
+
+.custom-weekly-counter-input::-webkit-inner-spin-button,
+.custom-weekly-counter-input::-webkit-outer-spin-button {
+   -webkit-appearance: none;
+   margin: 0;
+}
+
+.custom-weekly-counter-input:focus {
+   outline: none;
+   background: color-mix(in srgb, var(--color-primary) 6%, transparent);
+}

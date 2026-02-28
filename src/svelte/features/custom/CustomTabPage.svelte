@@ -15,6 +15,8 @@
     setCellValue,
     copyLayoutToClipboard,
     loadLayoutClipboard,
+    TYPE_COLORS,
+    TYPE_ICONS,
     type CustomColumnsState,
     type CustomTabValues,
     type CustomColumn,
@@ -264,20 +266,6 @@
     columnsState = { ...columnsState, colWidths: Object.keys(rest).length ? rest : undefined };
     saveColumns(activeRosterId, columnsState);
   }
-
-  const TYPE_COLORS: Record<ColumnType, string> = {
-    checkbox: '#4CAF50',
-    text:     '#2196F3',
-    textarea: '#ff9800',
-    counter:  '#9c27b0',
-  };
-
-  const TYPE_ICONS: Record<ColumnType, string> = {
-    checkbox: '✓',
-    text:     'T',
-    textarea: '≡',
-    counter:  '#',
-  };
 </script>
 
 <section class="tab-content active ct-page" id="custom-tab">

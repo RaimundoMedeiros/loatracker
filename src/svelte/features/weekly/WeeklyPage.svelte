@@ -20,6 +20,15 @@
   import { normalizeFriendsConfig } from '../friends/config';
   import type { FriendsRosterConfig } from '../friends/types';
   import { runAutoRaidFocusUpdate } from '../../services/AutoRaidFocusUpdateService';
+  import {
+    loadColumns,
+    loadValues,
+    saveValues,
+    getCellValue,
+    setCellValue,
+    orderedColumns,
+  } from '../custom/customTabDomain';
+  import type { CustomColumnsState, CustomTabValues, CustomColumn } from '../custom/customTabDomain';
 
   type Difficulty = 'Solo' | 'Normal' | 'Hard';
 
@@ -136,6 +145,12 @@
   let weeklyConfirmConfirmButton: HTMLButtonElement | null = null;
   let weeklyConfirmReturnFocusEl: HTMLElement | null = null;
 
+  // Custom tab columns surfaced in the weekly tracker
+  let customColumnsStateByRoster: Record<string, CustomColumnsState> = {};
+  let customTabValuesCache: Record<string, CustomTabValues> = {};
+  let pinnedCustomColsByRoster: Record<string, string[]> = {};
+  let draftPinnedCustomCols: Record<string, boolean> = {};
+
   $: weeklyConfirmOpen = weeklyConfirmAction !== null;
   $: weeklyConfirmTitle = weeklyConfirmAction === 'reset-weekly' ? 'Reset weekly data' : '';
   $: weeklyConfirmMessage = weeklyConfirmAction === 'reset-weekly'
@@ -218,6 +233,64 @@
   ];
   const VALID_COLUMN_IDS = new Set(columnEntries.map((entry) => entry.id));
 
+  // --- Custom columns in weekly tracker helpers ---
+
+  function pinnedCustomColsKey(rosterId: string): string {
+    return `wtl:weekly:${rosterId}:custom-cols`;
+  }
+
+  function loadPinnedCustomCols(rosterId: string): string[] {
+    try {
+      const raw = localStorage.getItem(pinnedCustomColsKey(rosterId));
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? (parsed as string[]) : [];
+    } catch { return []; }
+  }
+
+  function savePinnedCustomCols(rosterId: string, ids: string[]): void {
+    try {
+      localStorage.setItem(pinnedCustomColsKey(rosterId), JSON.stringify(ids));
+    } catch { /* storage unavailable */ }
+  }
+
+  function refreshCustomColumnsForCards() {
+    const nextCols: Record<string, CustomColumnsState> = { ...customColumnsStateByRoster };
+    const nextPinned: Record<string, string[]> = { ...pinnedCustomColsByRoster };
+    const nextValues: Record<string, CustomTabValues> = { ...customTabValuesCache };
+    let changed = false;
+    for (const card of weeklyCards) {
+      if (!nextCols[card.rosterId]) {
+        nextCols[card.rosterId] = loadColumns(card.rosterId);
+        changed = true;
+      }
+      if (!nextPinned[card.rosterId]) {
+        nextPinned[card.rosterId] = loadPinnedCustomCols(card.rosterId);
+        changed = true;
+      }
+      if (!nextValues[card.rosterId]) {
+        nextValues[card.rosterId] = loadValues(card.rosterId);
+        changed = true;
+      }
+    }
+    if (changed) {
+      customColumnsStateByRoster = nextCols;
+      pinnedCustomColsByRoster = nextPinned;
+      customTabValuesCache = nextValues;
+    }
+  }
+
+  function setWeeklyCustomCellValue(rosterId: string, column: CustomColumn, characterName: string, value: unknown): void {
+    const current = customTabValuesCache[rosterId] ?? { perCharacter: {}, global: {} };
+    const next = setCellValue(current, column, characterName, value);
+    saveValues(rosterId, next);
+    customTabValuesCache = { ...customTabValuesCache, [rosterId]: next };
+  }
+
+  function toggleDraftPinnedCustomCol(colId: string, checked: boolean): void {
+    draftPinnedCustomCols = { ...draftPinnedCustomCols, [colId]: checked };
+  }
+
   $: visibleCharacters = getVisibleCharacters(roster, order);
   $: hiddenSet = new Set(hiddenColumns);
   $: weeklyCards = buildWeeklyCardsFromState(
@@ -231,6 +304,7 @@
     dailyData,
     hiddenColumns
   );
+  $: weeklyCards, refreshCustomColumnsForCards();
 
   function debugWeekly(step: string, payload?: Record<string, unknown>) {
     if (!WEEKLY_DEBUG_ENABLED) {
@@ -1972,6 +2046,15 @@
     draftVisibleColumns = Object.fromEntries(
       columnEntries.map((entry) => [entry.id, !hidden.has(entry.id)])
     );
+    // Load custom columns and populate draft pinned state
+    const customState = loadColumns(targetRosterId);
+    customColumnsStateByRoster = { ...customColumnsStateByRoster, [targetRosterId]: customState };
+    const pinned = new Set(loadPinnedCustomCols(targetRosterId));
+    draftPinnedCustomCols = Object.fromEntries(
+      orderedColumns(customState)
+        .filter((col) => col.scope === 'per-character')
+        .map((col) => [col.id, pinned.has(col.id)])
+    );
     columnSettingsRosterId = targetRosterId;
     columnSettingsRosterName = String(rosterName || '').trim() || rosterNamesById[targetRosterId] || 'this roster';
     columnSettingsOpen = true;
@@ -1981,6 +2064,7 @@
     columnSettingsOpen = false;
     columnSettingsRosterId = '';
     columnSettingsRosterName = '';
+    draftPinnedCustomCols = {};
   }
 
   function toggleDraftColumn(columnId: string, checked: boolean) {
@@ -2028,9 +2112,20 @@
       rosterCardsCache = { ...rosterCardsCache };
     }
 
+    // Save pinned custom columns for the weekly tracker
+    const nextPinnedIds = Object.entries(draftPinnedCustomCols)
+      .filter(([, v]) => v)
+      .map(([id]) => id);
+    savePinnedCustomCols(targetRosterId, nextPinnedIds);
+    pinnedCustomColsByRoster = { ...pinnedCustomColsByRoster, [targetRosterId]: nextPinnedIds };
+    if (!customTabValuesCache[targetRosterId]) {
+      customTabValuesCache = { ...customTabValuesCache, [targetRosterId]: loadValues(targetRosterId) };
+    }
+
     columnSettingsOpen = false;
     columnSettingsRosterId = '';
     columnSettingsRosterName = '';
+    draftPinnedCustomCols = {};
     showToast(`Columns updated for ${rosterNamesById[targetRosterId] || 'roster'}`, TOAST_TYPES.SUCCESS);
   }
 
@@ -2498,7 +2593,11 @@
       {@const cardShowGoldColumn = !card.hiddenColumns.includes('gold')}
       {@const cardShowGuardianColumn = !card.hiddenColumns.includes('guardianRaid')}
       {@const cardShowChaosColumn = !card.hiddenColumns.includes('chaosDungeon')}
-      {@const cardTotalColumnsCount = 1 + cardVisibleBosses.length + (cardShowGoldColumn ? 1 : 0) + (cardShowGuardianColumn ? 1 : 0) + (cardShowChaosColumn ? 1 : 0)}
+      {@const cardCustomColsState = customColumnsStateByRoster[card.rosterId] ?? { columns: [], columnOrder: [] }}
+      {@const cardPinnedCustomColIds = new Set(pinnedCustomColsByRoster[card.rosterId] ?? [])}
+      {@const cardVisibleCustomCols = orderedColumns(cardCustomColsState).filter((col) => col.scope === 'per-character' && cardPinnedCustomColIds.has(col.id))}
+      {@const cardCustomValues = customTabValuesCache[card.rosterId] ?? { perCharacter: {}, global: {} }}
+      {@const cardTotalColumnsCount = 1 + cardVisibleBosses.length + (cardShowGoldColumn ? 1 : 0) + (cardShowGuardianColumn ? 1 : 0) + (cardShowChaosColumn ? 1 : 0) + cardVisibleCustomCols.length}
       {@const cardVisibleCharacters = getVisibleCharactersForRoster(card.roster, card.order)}
       {@const cardGoldByCharacter = computeGoldByCharacterForCard(cardVisibleCharacters, card.characterData, cardVisibleBosses)}
       {@const cardTotalGold = Object.values(cardGoldByCharacter).reduce((sum, value) => sum + value, 0)}
@@ -2599,6 +2698,9 @@
               {#if cardShowChaosColumn}
                 <th class="daily-header" class:daily-divider={!cardShowGuardianColumn}><span>Chaos Dungeon</span><span class="daily-subtext">(manual)</span></th>
               {/if}
+              {#each cardVisibleCustomCols as customCol (customCol.id)}
+                <th class="custom-weekly-col-header" style={customCol.color ? `border-bottom-color: ${customCol.color}` : ''}>{customCol.title}</th>
+              {/each}
             </tr>
           </thead>
           <tbody>
@@ -2745,6 +2847,40 @@
                       />
                     </td>
                   {/if}
+
+                  {#each cardVisibleCustomCols as customCol (customCol.id)}
+                    <td class="custom-weekly-col-cell">
+                      {#if customCol.type === 'checkbox'}
+                        <input
+                          type="checkbox"
+                          class="daily-checkmark"
+                          checked={Boolean(getCellValue(cardCustomValues, customCol, characterName))}
+                          on:change={(event) => setWeeklyCustomCellValue(card.rosterId, customCol, characterName, Boolean((event.currentTarget as HTMLInputElement).checked))}
+                          aria-label={`${customCol.title} for ${characterName}`}
+                        />
+                      {:else if customCol.type === 'counter'}
+                        <div class="custom-weekly-counter-widget" role="group" aria-label={`${customCol.title} for ${characterName}`}>
+                          <button type="button" class="custom-weekly-counter-btn" aria-label="Decrease" on:click={() => setWeeklyCustomCellValue(card.rosterId, customCol, characterName, Math.max(0, (Number(getCellValue(cardCustomValues, customCol, characterName)) || 0) - 1))}>−</button>
+                          <input
+                            type="number"
+                            class="custom-weekly-counter-input"
+                            value={Number(getCellValue(cardCustomValues, customCol, characterName) ?? 0)}
+                            on:input={(event) => { const n = parseInt((event.currentTarget as HTMLInputElement).value, 10); setWeeklyCustomCellValue(card.rosterId, customCol, characterName, Number.isFinite(n) ? Math.max(0, n) : 0); }}
+                            aria-label={`${customCol.title} for ${characterName}`}
+                          />
+                          <button type="button" class="custom-weekly-counter-btn" aria-label="Increase" on:click={() => setWeeklyCustomCellValue(card.rosterId, customCol, characterName, (Number(getCellValue(cardCustomValues, customCol, characterName)) || 0) + 1)}>+</button>
+                        </div>
+                      {:else}
+                        <input
+                          type="text"
+                          class="custom-weekly-input custom-weekly-text"
+                          value={String(getCellValue(cardCustomValues, customCol, characterName) ?? '')}
+                          on:change={(event) => setWeeklyCustomCellValue(card.rosterId, customCol, characterName, (event.currentTarget as HTMLInputElement).value)}
+                          aria-label={`${customCol.title} for ${characterName}`}
+                        />
+                      {/if}
+                    </td>
+                  {/each}
                 </tr>
               {/if}
             {/each}
@@ -2767,12 +2903,17 @@
                 {#if cardShowChaosColumn}
                   <td class="total-empty"></td>
                 {/if}
+                {#each cardVisibleCustomCols as customCol (customCol.id)}
+                  <td class="total-empty"></td>
+                {/each}
               </tr>
             {/if}
           </tbody>
         </table>
 
         {#if columnSettingsOpen && columnSettingsRosterId === card.rosterId}
+          {@const modalCustomColsState = customColumnsStateByRoster[columnSettingsRosterId] ?? { columns: [], columnOrder: [] }}
+          {@const modalPerCharCols = orderedColumns(modalCustomColsState).filter((col) => col.scope === 'per-character')}
           <div id="column-settings-modal" style="display: block;" role="dialog" aria-modal="true" aria-labelledby="column-settings-title">
             <div class="modal-overlay"></div>
             <div class="modal-content column-settings-modal" role="document">
@@ -2794,6 +2935,25 @@
                     </div>
                   </label>
                 {/each}
+
+                {#if modalPerCharCols.length > 0}
+                  <p class="column-settings-section-label">Custom Tab Columns</p>
+                  <div class="column-settings-custom-grid">
+                    {#each modalPerCharCols as col (col.id)}
+                      <label class="column-settings-item">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(draftPinnedCustomCols[col.id])}
+                          on:change={(event) => toggleDraftPinnedCustomCol(col.id, Boolean((event.currentTarget as HTMLInputElement).checked))}
+                        />
+                        <div class="column-settings-copy">
+                          <span class="column-settings-title">{col.title}</span>
+                          <span class="column-settings-sub">{col.type} · per character</span>
+                        </div>
+                      </label>
+                    {/each}
+                  </div>
+                {/if}
               </div>
 
               <div class="modal-buttons">
