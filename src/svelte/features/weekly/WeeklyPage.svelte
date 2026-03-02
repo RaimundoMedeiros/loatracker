@@ -2699,7 +2699,7 @@
                 <th class="daily-header" class:daily-divider={!cardShowGuardianColumn}><span>Chaos Dungeon</span><span class="daily-subtext">(manual)</span></th>
               {/if}
               {#each cardVisibleCustomCols as customCol (customCol.id)}
-                <th class="custom-weekly-col-header" style={customCol.color ? `border-bottom-color: ${customCol.color}` : ''}>{customCol.title}</th>
+                <th class="custom-weekly-col-header custom-weekly-col-header--{customCol.type}" style={customCol.color ? `border-bottom-color: ${customCol.color}` : ''}>{customCol.title}</th>
               {/each}
             </tr>
           </thead>
@@ -2849,7 +2849,7 @@
                   {/if}
 
                   {#each cardVisibleCustomCols as customCol (customCol.id)}
-                    <td class="custom-weekly-col-cell">
+                    <td class="custom-weekly-col-cell custom-weekly-col-cell--{customCol.type}">
                       {#if customCol.type === 'checkbox'}
                         <input
                           type="checkbox"
@@ -2860,21 +2860,23 @@
                         />
                       {:else if customCol.type === 'counter'}
                         <div class="custom-weekly-counter-widget" role="group" aria-label={`${customCol.title} for ${characterName}`}>
-                          <button type="button" class="custom-weekly-counter-btn" aria-label="Decrease" on:click={() => setWeeklyCustomCellValue(card.rosterId, customCol, characterName, Math.max(0, (Number(getCellValue(cardCustomValues, customCol, characterName)) || 0) - 1))}>−</button>
+                          <button type="button" class="custom-weekly-counter-btn" aria-label={`Decrease ${customCol.title}`} on:click={() => setWeeklyCustomCellValue(card.rosterId, customCol, characterName, (Number(getCellValue(cardCustomValues, customCol, characterName)) || 0) - 1)}>−</button>
                           <input
                             type="number"
                             class="custom-weekly-counter-input"
                             value={Number(getCellValue(cardCustomValues, customCol, characterName) ?? 0)}
-                            on:input={(event) => { const n = parseInt((event.currentTarget as HTMLInputElement).value, 10); setWeeklyCustomCellValue(card.rosterId, customCol, characterName, Number.isFinite(n) ? Math.max(0, n) : 0); }}
+                            on:input={(event) => { const n = parseInt((event.currentTarget as HTMLInputElement).value, 10); setWeeklyCustomCellValue(card.rosterId, customCol, characterName, Number.isFinite(n) ? n : 0); }}
                             aria-label={`${customCol.title} for ${characterName}`}
                           />
-                          <button type="button" class="custom-weekly-counter-btn" aria-label="Increase" on:click={() => setWeeklyCustomCellValue(card.rosterId, customCol, characterName, (Number(getCellValue(cardCustomValues, customCol, characterName)) || 0) + 1)}>+</button>
+                          <button type="button" class="custom-weekly-counter-btn" aria-label={`Increase ${customCol.title}`} on:click={() => setWeeklyCustomCellValue(card.rosterId, customCol, characterName, (Number(getCellValue(cardCustomValues, customCol, characterName)) || 0) + 1)}>+</button>
                         </div>
                       {:else}
                         <input
                           type="text"
                           class="custom-weekly-input custom-weekly-text"
                           value={String(getCellValue(cardCustomValues, customCol, characterName) ?? '')}
+                          size={Math.max(3, String(getCellValue(cardCustomValues, customCol, characterName) ?? '').length)}
+                          on:input={(event) => { const el = event.currentTarget as HTMLInputElement; el.size = Math.max(3, el.value.length); }}
                           on:change={(event) => setWeeklyCustomCellValue(card.rosterId, customCol, characterName, (event.currentTarget as HTMLInputElement).value)}
                           aria-label={`${customCol.title} for ${characterName}`}
                         />
