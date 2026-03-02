@@ -2875,8 +2875,8 @@
                           type="text"
                           class="custom-weekly-input custom-weekly-text"
                           value={String(getCellValue(cardCustomValues, customCol, characterName) ?? '')}
-                          size={Math.max(3, String(getCellValue(cardCustomValues, customCol, characterName) ?? '').length)}
-                          on:input={(event) => { const el = event.currentTarget as HTMLInputElement; el.size = Math.max(3, el.value.length); }}
+                          size={Math.max(5, String(getCellValue(cardCustomValues, customCol, characterName) ?? '').length)}
+                          on:input={(event) => { const el = event.currentTarget as HTMLInputElement; el.size = Math.max(5, el.value.length); }}
                           on:change={(event) => setWeeklyCustomCellValue(card.rosterId, customCol, characterName, (event.currentTarget as HTMLInputElement).value)}
                           aria-label={`${customCol.title} for ${characterName}`}
                         />
