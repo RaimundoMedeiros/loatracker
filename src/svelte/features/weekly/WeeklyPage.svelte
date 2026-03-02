@@ -150,6 +150,10 @@
   let customTabValuesCache: Record<string, CustomTabValues> = {};
   let pinnedCustomColsByRoster: Record<string, string[]> = {};
   let draftPinnedCustomCols: Record<string, boolean> = {};
+  let customColWidthsByRoster: Record<string, Record<string, number>> = {};
+  let editingWidthColId: string | null = null;
+  let editingWidthRosterId: string | null = null;
+  let editingWidthDraft = 5;
 
   $: weeklyConfirmOpen = weeklyConfirmAction !== null;
   $: weeklyConfirmTitle = weeklyConfirmAction === 'reset-weekly' ? 'Reset weekly data' : '';
@@ -254,10 +258,60 @@
     } catch { /* storage unavailable */ }
   }
 
+  function customColWidthsKey(rosterId: string): string {
+    return `wtl:weekly:${rosterId}:custom-col-widths`;
+  }
+
+  function loadCustomColWidths(rosterId: string): Record<string, number> {
+    try {
+      const raw = localStorage.getItem(customColWidthsKey(rosterId));
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? parsed as Record<string, number> : {};
+    } catch { return {}; }
+  }
+
+  function saveCustomColWidths(rosterId: string, widths: Record<string, number>): void {
+    try {
+      localStorage.setItem(customColWidthsKey(rosterId), JSON.stringify(widths));
+    } catch { /* storage unavailable */ }
+  }
+
+  function getColWidth(rosterId: string, colId: string): number {
+    return customColWidthsByRoster[rosterId]?.[colId] ?? 5;
+  }
+
+  function openWidthEditor(rosterId: string, colId: string, currentWidth: number) {
+    editingWidthRosterId = rosterId;
+    editingWidthColId = colId;
+    editingWidthDraft = currentWidth;
+  }
+
+  function commitWidthEdit() {
+    if (!editingWidthRosterId || !editingWidthColId) return;
+    const clamped = Math.max(3, Math.min(14, editingWidthDraft));
+    const current = customColWidthsByRoster[editingWidthRosterId] ?? {};
+    const next = { ...current, [editingWidthColId]: clamped };
+    customColWidthsByRoster = { ...customColWidthsByRoster, [editingWidthRosterId]: next };
+    saveCustomColWidths(editingWidthRosterId, next);
+    editingWidthColId = null;
+    editingWidthRosterId = null;
+  }
+
+  function cancelWidthEdit() {
+    editingWidthColId = null;
+    editingWidthRosterId = null;
+  }
+
+  function focusOnMount(node: HTMLElement) {
+    node.focus();
+  }
+
   function refreshCustomColumnsForCards() {
     const nextCols: Record<string, CustomColumnsState> = { ...customColumnsStateByRoster };
     const nextPinned: Record<string, string[]> = { ...pinnedCustomColsByRoster };
     const nextValues: Record<string, CustomTabValues> = { ...customTabValuesCache };
+    const nextWidths: Record<string, Record<string, number>> = { ...customColWidthsByRoster };
     let changed = false;
     for (const card of weeklyCards) {
       if (!nextCols[card.rosterId]) {
@@ -272,11 +326,16 @@
         nextValues[card.rosterId] = loadValues(card.rosterId);
         changed = true;
       }
+      if (!nextWidths[card.rosterId]) {
+        nextWidths[card.rosterId] = loadCustomColWidths(card.rosterId);
+        changed = true;
+      }
     }
     if (changed) {
       customColumnsStateByRoster = nextCols;
       pinnedCustomColsByRoster = nextPinned;
       customTabValuesCache = nextValues;
+      customColWidthsByRoster = nextWidths;
     }
   }
 
@@ -2699,7 +2758,28 @@
                 <th class="daily-header" class:daily-divider={!cardShowGuardianColumn}><span>Chaos Dungeon</span><span class="daily-subtext">(manual)</span></th>
               {/if}
               {#each cardVisibleCustomCols as customCol (customCol.id)}
-                <th class="custom-weekly-col-header custom-weekly-col-header--{customCol.type}" style={customCol.color ? `border-bottom-color: ${customCol.color}` : ''}>{customCol.title}</th>
+                <th class="custom-weekly-col-header custom-weekly-col-header--{customCol.type}" style={customCol.color ? `border-bottom-color: ${customCol.color}` : ''}>
+                  <span class="custom-weekly-col-title-row">
+                    <span>{customCol.title}</span>
+                    {#if customCol.type === 'text' || customCol.type === 'textarea'}
+                      {#if editingWidthColId === customCol.id && editingWidthRosterId === card.rosterId}
+                        <input
+                          type="text"
+                          maxlength="2"
+                          inputmode="numeric"
+                          class="custom-weekly-width-input"
+                          value={editingWidthDraft}
+                          on:input={(e) => { const n = parseInt((e.currentTarget as HTMLInputElement).value, 10); if (!isNaN(n)) editingWidthDraft = Math.max(3, Math.min(14, n)); }}
+                          on:keydown={(e) => { if (e.key === 'Enter') commitWidthEdit(); else if (e.key === 'Escape') cancelWidthEdit(); }}
+                          on:blur={commitWidthEdit}
+                          use:focusOnMount
+                        />
+                      {:else}
+                        <button type="button" class="custom-weekly-width-btn" title="Adjust column width" on:click={() => openWidthEditor(card.rosterId, customCol.id, getColWidth(card.rosterId, customCol.id))}>↔</button>
+                      {/if}
+                    {/if}
+                  </span>
+                </th>
               {/each}
             </tr>
           </thead>
@@ -2871,12 +2951,13 @@
                           <button type="button" class="custom-weekly-counter-btn" aria-label={`Increase ${customCol.title}`} on:click={() => setWeeklyCustomCellValue(card.rosterId, customCol, characterName, (Number(getCellValue(cardCustomValues, customCol, characterName)) || 0) + 1)}>+</button>
                         </div>
                       {:else}
+                        {@const colWidth = customColWidthsByRoster[card.rosterId]?.[customCol.id] ?? 5}
                         <input
                           type="text"
                           class="custom-weekly-input custom-weekly-text"
                           value={String(getCellValue(cardCustomValues, customCol, characterName) ?? '')}
-                          size={Math.max(5, String(getCellValue(cardCustomValues, customCol, characterName) ?? '').length)}
-                          on:input={(event) => { const el = event.currentTarget as HTMLInputElement; el.size = Math.max(5, el.value.length); }}
+                          size={Math.max(colWidth, String(getCellValue(cardCustomValues, customCol, characterName) ?? '').length)}
+                          on:input={(event) => { const el = event.currentTarget as HTMLInputElement; el.size = Math.max(colWidth, el.value.length); }}
                           on:change={(event) => setWeeklyCustomCellValue(card.rosterId, customCol, characterName, (event.currentTarget as HTMLInputElement).value)}
                           aria-label={`${customCol.title} for ${characterName}`}
                         />
