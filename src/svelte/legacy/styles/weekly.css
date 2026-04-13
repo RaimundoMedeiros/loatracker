@@ -716,6 +716,12 @@ tr:nth-child(even) {
    border-color: color-mix(in srgb, var(--color-hard) 70%, #000);
 }
 
+.difficulty-box.nightmare {
+   background-color: var(--color-nightmare);
+   color: #fff;
+   border-color: color-mix(in srgb, var(--color-nightmare) 70%, #000);
+}
+
 .difficulty-box:hover:not(.inactive) {
    filter: brightness(1.08);
 }

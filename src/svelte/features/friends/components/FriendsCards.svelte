@@ -12,6 +12,7 @@
 
   function decodeDiff(mask: number, raidIndex: number): { cls: string; label: string } {
     const bits = ((mask || 0) >> (raidIndex * 2)) & 0b11;
+    if (bits === 3) return { cls: 'diff-nightmare', label: 'Nightmare' };
     if (bits === 2) return { cls: 'diff-hard', label: 'Hard' };
     if (bits === 1) return { cls: 'diff-normal', label: 'Normal' };
     return { cls: 'diff-normal', label: 'Solo' };
@@ -19,6 +20,7 @@
 
   function decodeMaxDiff(mask: number, raidIndex: number): { cls: string; label: string } {
     const bits = ((mask || 0) >> (raidIndex * 2)) & 0b11;
+    if (bits === 3) return { cls: 'diff-nightmare', label: 'Nightmare' };
     return bits === 2
       ? { cls: 'diff-hard', label: 'Hard' }
       : { cls: 'diff-normal', label: 'Normal' };

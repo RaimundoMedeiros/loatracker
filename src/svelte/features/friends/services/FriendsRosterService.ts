@@ -209,7 +209,7 @@ export class FriendsRosterService {
             diffMask |= (this.encodeDiff(bossData.difficulty) << (index * 2));
           }
 
-          const raidCfg = RAID_CONFIG[index] as { nm?: number; hm?: number };
+          const raidCfg = RAID_CONFIG[index] as { nm?: number; hm?: number; nmr?: number };
           maxDiffMask |= (this.computeMaxDiffBits(charInfo?.ilvl || 0, raidCfg) << (index * 2));
         });
 
@@ -269,12 +269,14 @@ export class FriendsRosterService {
 
   private encodeDiff(difficulty: unknown): number {
     const d = String(difficulty || '');
+    if (d === 'Nightmare') return 3;
     if (d === 'Hard') return 2;
     if (d === 'Normal') return 1;
     return 0;
   }
 
-  private computeMaxDiffBits(ilvl: number, raidCfg: { nm?: number; hm?: number }): number {
+  private computeMaxDiffBits(ilvl: number, raidCfg: { nm?: number; hm?: number; nmr?: number }): number {
+    if (raidCfg?.nmr && ilvl >= raidCfg.nmr) return 3;
     if (raidCfg?.hm && ilvl >= raidCfg.hm) return 2;
     if (raidCfg?.nm && ilvl >= raidCfg.nm) return 1;
     return 0;

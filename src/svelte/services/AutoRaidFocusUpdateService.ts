@@ -2,7 +2,7 @@ import type { AppApi, RosterPayload, SettingsPayload } from '../../types/app-api
 import { BOSSES, BOSS_MAP, RAID_CONFIG } from '../legacy/config/constants.js';
 import { normalizeRaidKey } from '../domain/shared/raidDomain';
 
-type Difficulty = 'Solo' | 'Normal' | 'Hard';
+type Difficulty = 'Solo' | 'Normal' | 'Hard' | 'Nightmare';
 
 type RosterCharacter = {
   class: string;
@@ -45,12 +45,13 @@ function isAutoRaidOnFocusEnabled(settingsNow: Record<string, unknown>) {
 
 function normalizeDifficulty(value: unknown): Difficulty {
   const safe = String(value || '').trim();
-  if (safe === 'Normal' || safe === 'Hard') return safe;
+  if (safe === 'Normal' || safe === 'Hard' || safe === 'Nightmare') return safe;
   return 'Solo';
 }
 
 function mapDifficultyFromRaid(value: unknown): Difficulty {
   const safe = String(value || '').toLowerCase();
+  if (safe.includes('nightmare')) return 'Nightmare';
   if (safe.includes('hard')) return 'Hard';
   if (safe.includes('normal')) return 'Normal';
   return 'Solo';
@@ -128,7 +129,7 @@ function getRaidConfigByBoss(boss: string) {
 function disallowSoloForBoss(boss: string) {
   const raid = getRaidConfigByBoss(boss) as { id?: string } | undefined;
   const raidId = String(raid?.id || normalizeRaidBossId(boss) || '').toLowerCase();
-  return raidId === 'armoche' || raidId === 'kazeros';
+  return raidId === 'armoche' || raidId === 'kazeros' || raidId === 'serka';
 }
 
 function getAllowedDifficultiesForRoster(
@@ -142,6 +143,10 @@ function getAllowedDifficultiesForRoster(
 
   if (!character || !raid) {
     return soloDisabled ? ['Normal'] : ['Solo', 'Normal'];
+  }
+
+  if (character.ilvl >= Number((raid as any).nmr || 9999)) {
+    return soloDisabled ? ['Normal', 'Hard', 'Nightmare'] : ['Solo', 'Normal', 'Hard', 'Nightmare'];
   }
 
   if (character.ilvl >= Number((raid as any).hm || 9999)) {
@@ -184,7 +189,8 @@ async function loadRaidsIntoRosterFromDatabase(
       return;
     }
 
-    const rawBoss = (BOSS_MAP as Record<string, string>)[String(raid.current_boss || '')];
+    const rawBoss = (BOSS_MAP as Record<string, string>)[String(raid.current_boss || '')]
+      || String(raid.current_boss || '');
     const boss = normalizeRaidBossId(rawBoss);
     if (!boss) return;
 

@@ -75,6 +75,7 @@
     mordum: 'MORDUM',
     armoche: 'ARMOCHE',
     kazeros: 'KAZEROS',
+    serka: 'SERKA',
   };
 
   function getRaidConfigAt(raidIndex: number): { id?: string } | undefined {
@@ -618,26 +619,26 @@
     if (!visible) {
       if (done) {
         const bits = ((character.diffMask || 0) >> (raidIndex * 2)) & 0b11;
-        const cls = bits === 2 ? 'diff-hard' : 'diff-normal';
-        const label = bits === 2 ? 'Hard' : bits === 1 ? 'Normal' : 'Solo';
+        const cls = bits === 3 ? 'diff-nightmare' : (bits === 2 ? 'diff-hard' : 'diff-normal');
+        const label = bits === 3 ? 'Nightmare' : (bits === 2 ? 'Hard' : bits === 1 ? 'Normal' : 'Solo');
         return { className: `state-hidden-done ${cls}`, text: '✓', label: `Completed ${label} (hidden from gold)` };
       }
       const bits = ((character.maxDiffMask || 0) >> (raidIndex * 2)) & 0b11;
-      const cls = bits === 2 ? 'diff-hard' : 'diff-normal';
-      const label = bits === 2 ? 'Hard' : 'Normal';
+      const cls = bits === 3 ? 'diff-nightmare' : (bits === 2 ? 'diff-hard' : 'diff-normal');
+      const label = bits === 3 ? 'Nightmare' : (bits === 2 ? 'Hard' : 'Normal');
       return { className: `state-none ${cls}`, text: '-', label: `Hidden · ${label} available` };
     }
 
     if (done) {
       const bits = ((character.diffMask || 0) >> (raidIndex * 2)) & 0b11;
-      const cls = bits === 2 ? 'diff-hard' : 'diff-normal';
-      const label = bits === 2 ? 'Hard' : bits === 1 ? 'Normal' : 'Solo';
+      const cls = bits === 3 ? 'diff-nightmare' : (bits === 2 ? 'diff-hard' : 'diff-normal');
+      const label = bits === 3 ? 'Nightmare' : (bits === 2 ? 'Hard' : bits === 1 ? 'Normal' : 'Solo');
       return { className: `state-self-done ${cls}`, text: '✓', label: `Completed (${label})` };
     }
 
     const bits = ((character.maxDiffMask || 0) >> (raidIndex * 2)) & 0b11;
-    const cls = bits === 2 ? 'diff-hard' : 'diff-normal';
-    const label = bits === 2 ? 'Hard' : 'Normal';
+    const cls = bits === 3 ? 'diff-nightmare' : (bits === 2 ? 'diff-hard' : 'diff-normal');
+    const label = bits === 3 ? 'Nightmare' : (bits === 2 ? 'Hard' : 'Normal');
     return { className: `state-self-available ${cls}`, text: '●', label: `Available · ${label}` };
   }
 
@@ -670,20 +671,20 @@
 
       if (done) {
         const bits = ((char?.diffMask || 0) >> (raidIndex * 2)) & 0b11;
-        const diff = (bits === 2 ? 'Hard' : bits === 1 ? 'Normal' : 'Solo').padEnd(8);
+        const diff = (bits === 3 ? 'Nightmare' : bits === 2 ? 'Hard' : bits === 1 ? 'Normal' : 'Solo').padEnd(8);
         const icon = visible ? '✓' : '(✓)';
         return `${name}${diff}${icon}`;
       }
 
       if (visible) {
         const bits = ((char?.maxDiffMask || 0) >> (raidIndex * 2)) & 0b11;
-        const diff = (bits === 2 ? 'Hard' : 'Normal').padEnd(8);
+        const diff = (bits === 3 ? 'Nightmare' : bits === 2 ? 'Hard' : 'Normal').padEnd(8);
         return `${name}${diff}●`;
       }
 
       // hidden and not done — show max achievable diff
       const bits = ((char?.maxDiffMask || 0) >> (raidIndex * 2)) & 0b11;
-      const diff = (bits === 2 ? 'Hard' : 'Normal').padEnd(8);
+      const diff = (bits === 3 ? 'Nightmare' : bits === 2 ? 'Hard' : 'Normal').padEnd(8);
       return `${name}${diff}—`;
     });
     const header = 'Character'.padEnd(14) + 'Diff'.padEnd(8) + 'Status';

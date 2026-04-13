@@ -230,6 +230,7 @@
 
 .friends-heatmap-cell.diff-hard   { --diff-color: #dca147; text-shadow: -1px -1px 0 rgba(0,0,0,0.55), 1px -1px 0 rgba(0,0,0,0.55), -1px 1px 0 rgba(0,0,0,0.55), 1px 1px 0 rgba(0,0,0,0.55); }
 .friends-heatmap-cell.diff-normal { --diff-color: #DAE5F4; }
+.friends-heatmap-cell.diff-nightmare { --diff-color: var(--color-nightmare); text-shadow: -1px -1px 0 rgba(0,0,0,0.55), 1px -1px 0 rgba(0,0,0,0.55), -1px 1px 0 rgba(0,0,0,0.55), 1px 1px 0 rgba(0,0,0,0.55); }
 
 .friends-heatmap-cell.state-match {
     background: color-mix(in srgb, #2abf9e 32%, var(--color-bg-darker));
@@ -495,6 +496,7 @@
 
 .friends-raid-cell.diff-hard   { --diff-color: #dca147; text-shadow: -1px -1px 0 rgba(0,0,0,0.55), 1px -1px 0 rgba(0,0,0,0.55), -1px 1px 0 rgba(0,0,0,0.55), 1px 1px 0 rgba(0,0,0,0.55); }
 .friends-raid-cell.diff-normal { --diff-color: #DAE5F4; }
+.friends-raid-cell.diff-nightmare { --diff-color: var(--color-nightmare); text-shadow: -1px -1px 0 rgba(0,0,0,0.55), 1px -1px 0 rgba(0,0,0,0.55), -1px 1px 0 rgba(0,0,0,0.55), 1px 1px 0 rgba(0,0,0,0.55); }
 
 .friends-raid-cell.is-pending {
     color: var(--diff-color);

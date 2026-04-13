@@ -30,7 +30,7 @@
   } from '../custom/customTabDomain';
   import type { CustomColumnsState, CustomTabValues, CustomColumn } from '../custom/customTabDomain';
 
-  type Difficulty = 'Solo' | 'Normal' | 'Hard';
+  type Difficulty = 'Solo' | 'Normal' | 'Hard' | 'Nightmare';
 
   type RosterCharacter = {
     class: string;
@@ -229,7 +229,9 @@
     ...RAID_CONFIG.map((raid) => ({
       id: String(raid.id),
       label: String(raid.label || raid.id),
-      subtitle: `iLvl ${raid.nm} NM / ${raid.hm} HM`,
+      subtitle: raid.nmr
+        ? `iLvl ${raid.nm} NM / ${raid.hm} HM / ${raid.nmr} Nightmare`
+        : `iLvl ${raid.nm} NM / ${raid.hm} HM`,
     })),
     { id: 'gold', label: 'Gold', subtitle: 'Show gold totals column' },
     { id: 'guardianRaid', label: 'Guardian Raid', subtitle: 'Daily checkbox' },
@@ -1099,7 +1101,7 @@
 
   function normalizeDifficulty(value: unknown): Difficulty {
     const safe = String(value || '').trim();
-    if (safe === 'Normal' || safe === 'Hard') return safe;
+    if (safe === 'Normal' || safe === 'Hard' || safe === 'Nightmare') return safe;
     return 'Solo';
   }
 
@@ -1174,7 +1176,7 @@
   function disallowSoloForBoss(boss: string) {
     const raid = getRaidConfigByBoss(boss) as { id?: string } | undefined;
     const raidId = String(raid?.id || normalizeRaidBossId(boss) || '').toLowerCase();
-    return raidId === 'armoche' || raidId === 'kazeros';
+    return raidId === 'armoche' || raidId === 'kazeros' || raidId === 'serka';
   }
 
   async function persistCharacterData() {
@@ -1465,6 +1467,10 @@
 
     if (!character || !raid) {
       return soloDisabled ? ['Normal'] : ['Solo', 'Normal'];
+    }
+
+    if (character.ilvl >= Number((raid as any).nmr || 9999)) {
+      return soloDisabled ? ['Normal', 'Hard', 'Nightmare'] : ['Solo', 'Normal', 'Hard', 'Nightmare'];
     }
 
     if (character.ilvl >= Number((raid as any).hm || 9999)) {
@@ -2190,6 +2196,7 @@
 
   function mapDifficultyFromRaid(value: unknown): Difficulty {
     const safe = String(value || '').toLowerCase();
+    if (safe.includes('nightmare')) return 'Nightmare';
     if (safe.includes('hard')) return 'Hard';
     if (safe.includes('normal')) return 'Normal';
     return 'Solo';
@@ -2241,7 +2248,8 @@
         }
         weeklyRowsInWindow += 1;
 
-        const rawBoss = (BOSS_MAP as Record<string, string>)[String(raid.current_boss || '')];
+        const rawBoss = (BOSS_MAP as Record<string, string>)[String(raid.current_boss || '')]
+          || String(raid.current_boss || '');
         const boss = normalizeRaidBossId(rawBoss);
         if (!boss) return;
         mappedBossRows += 1;
@@ -2525,7 +2533,9 @@
       if (!raid) return;
 
       const cell = getRaidCell(cardCharacterData, characterName, boss);
-      const diff = cell.difficulty === 'Hard' ? 'hm' : 'nm';
+      const diff = cell.difficulty === 'Nightmare'
+        ? 'nmr'
+        : (cell.difficulty === 'Hard' ? 'hm' : 'nm');
       const chestCost = Number((raid as any).chest?.[diff] || 0);
 
       if (!cell.cleared) return;
