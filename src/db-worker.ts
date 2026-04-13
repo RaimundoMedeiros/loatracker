@@ -35,7 +35,7 @@ const TRACKED_WEEKLY_BOSSES = [
   'Armoche, Sentinel of the Abyss',
   'Archdemon Kazeros',
   'Death Incarnate Kazeros',
-  'Serka',
+  'Serca',
 ];
 
 const GUARDIAN_BOSSES = ['Argeos', 'Skolakia', 'Drextalas', 'Krathios', "Krathios's Tail"];

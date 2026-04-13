@@ -19,7 +19,9 @@ const RAID_ALIASES: Record<string, string> = {
   kazeros: 'kazeros',
   finalactkazeros: 'kazeros',
   serka: 'serka',
+  serca: 'serka',
   act5serka: 'serka',
+  act5serca: 'serka',
 };
 
 function normalizeText(value: unknown): string {

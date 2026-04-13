@@ -75,7 +75,7 @@
     mordum: 'MORDUM',
     armoche: 'ARMOCHE',
     kazeros: 'KAZEROS',
-    serka: 'SERKA',
+    serka: 'SERCA',
   };
 
   function getRaidConfigAt(raidIndex: number): { id?: string } | undefined {
