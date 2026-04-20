@@ -3,3 +3,6 @@ contact_links:
   - name: Security report
     url: https://github.com/RaimundoMedeiros/loatracker/security/advisories/new
     about: Please report security vulnerabilities privately.
+  - name: Question or help
+    url: https://github.com/RaimundoMedeiros/loatracker/issues/new?labels=question
+    about: Ask a question about using or contributing to WeeklyTracker LA.

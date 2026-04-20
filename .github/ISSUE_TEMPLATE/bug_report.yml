@@ -44,6 +44,45 @@ body:
     validations:
       required: true
 
+  - type: dropdown
+    id: feature
+    attributes:
+      label: Affected feature
+      options:
+        - Weekly Tracker
+        - Roster Management
+        - Friends Sync
+        - Custom Tab
+        - Settings
+        - Daily Tracking
+        - Database Import
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - Cosmetic (visual only)
+        - Minor (workaround exists)
+        - Major (feature broken)
+        - Blocker (app unusable)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Desktop browser
+        - Mobile browser
+        - Installed PWA
+    validations:
+      required: true
+
   - type: input
     id: browser
     attributes:

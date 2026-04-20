@@ -1,0 +1,41 @@
+name: Documentation issue
+description: Report a typo, missing docs, or unclear explanation
+title: "docs: "
+labels:
+  - documentation
+body:
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type
+      options:
+        - Typo or grammar
+        - Missing documentation
+        - Outdated information
+        - Unclear explanation
+    validations:
+      required: true
+
+  - type: input
+    id: location
+    attributes:
+      label: Location
+      description: Which file or section is affected?
+      placeholder: README.md, CONTRIBUTING.md, docs/ARCHITECTURE.md, etc.
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What needs to change and why?
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contribution
+      options:
+        - label: I'd like to fix this myself

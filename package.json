@@ -1,9 +1,9 @@
 {
-  "name": "weeklytrackerla-svelte-only",
+  "name": "loatracker",
   "version": "0.1.0",
   "description": "Weekly raid tracker for Lost Ark with roster, friends sync, and custom tabs.",
-  "license": "AGPL-3.0-only",
-  "private": true,
+  "license": "MIT",
+  "author": "Raimundo Medeiros (https://github.com/RaimundoMedeiros)",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/RaimundoMedeiros/loatracker.git"
