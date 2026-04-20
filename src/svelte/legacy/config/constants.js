@@ -39,6 +39,7 @@ export const BOSS_MAP = {
     'Archdemon Kazeros': 'Kazeros',
     'Death Incarnate Kazeros': 'Kazeros',
     'Serka': 'Serca',
+    'Corvus Tul Rak': 'Serca',
     'Serca': 'Serca'
 };
 
