@@ -290,7 +290,6 @@ export const MESSAGES = {
     // Warning messages
     WARNING: {
         NO_DATABASE_PATH: 'Please configure the database path in Settings to load raid data',
-        NO_DATABASE_PATH_IMPORT: 'Please configure the database path in Settings to import from database',
         CHARACTER_EXISTS: 'Character already exists',
         NO_CHARACTERS: 'No characters found'
     },

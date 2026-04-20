@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { AppApi, DbAccessSupport, RosterPayload, SettingsPayload } from '../../../types/app-api';
-  import { onDestroy, onMount } from 'svelte';
+  import type { AppApi, RosterPayload } from '../../../types/app-api';
+  import { onDestroy } from 'svelte';
   import { UIHelper } from '../../utils/uiHelper';
   import { TOAST_TYPES } from '../../legacy/config/constants.js';
   import { BibleApiRequestError, BibleApiService } from '../../services/BibleApiService';
@@ -9,7 +9,6 @@
   import { reportError } from '../../utils/errorHandler';
   import { withAsyncError } from '../../utils/errorWrappers';
   import { ERROR_CODES } from '../../utils/errorCodes';
-  import DbGuideModal from '../../components/DbGuideModal.svelte';
 
   type Character = {
     name: string;
@@ -25,8 +24,7 @@
   type SortField = 'ilvl' | 'combatPower';
   type SortDirection = 'desc' | 'asc';
   type MathiRegion = 'NA' | 'EU';
-  type WizardStep = 'welcome' | 'database' | 'mathimoe' | 'preview';
-  type ImportSource = 'database' | 'mathimoe';
+  type WizardStep = 'welcome' | 'mathimoe' | 'preview';
 
   export let onRequestClose: (() => void) | undefined = undefined;
   export let onNavigateToRoster: (() => void) | undefined = undefined;
@@ -47,27 +45,12 @@
   const api: AppApi = window.api;
 
   let currentStep: WizardStep = 'welcome';
-  let importSource: ImportSource = 'database';
 
   let loading = false;
   let progressText = '';
 
   let mathiProgressVisible = false;
   let mathiProgressText = 'Fetching roster from Bible API...';
-
-  let wizardDbPath = '';
-  let wizardDropZoneMessage = 'Drag and drop encounters.db here to load it (persistent when allowed).';
-  let wizardDropSuccess = false;
-  let wizardDropError = false;
-  let wizardDragDepth = 0;
-  let dbAccessSupport: DbAccessSupport = {
-    persistentHandle: typeof window !== 'undefined' && typeof window.showOpenFilePicker === 'function',
-    nativeFilePicker: typeof window !== 'undefined' && typeof window.showOpenFilePicker === 'function',
-    handleDragDrop: typeof DataTransferItem !== 'undefined' && 'getAsFileSystemHandle' in DataTransferItem.prototype,
-    browser: 'unknown',
-  };
-
-  let dbGuideOpen = false;
 
   let foundCharacters: PreviewCharacter[] = [];
   let sortField: SortField = 'ilvl';
@@ -87,34 +70,14 @@
   $: mathiButtonLabel = cooldownRemaining > 0
     ? `Wait ${cooldownRemaining}s`
     : (mathiLoading ? 'Fetching roster…' : 'Import');
-  $: wizardCanContinueDb = Boolean(wizardDbPath.trim()) && !loading;
   $: wizardSortIlvlArrow = sortField === 'ilvl' ? (sortDirection === 'desc' ? '↓' : '↑') : '↕';
   $: wizardSortCpArrow = sortField === 'combatPower' ? (sortDirection === 'desc' ? '↓' : '↑') : '↕';
-  $: browserName = dbAccessSupport?.browser === 'firefox'
-    ? 'Firefox'
-    : dbAccessSupport?.browser === 'safari'
-      ? 'Safari'
-      : dbAccessSupport?.browser === 'brave'
-        ? 'Brave'
-        : dbAccessSupport?.browser === 'edge'
-          ? 'Edge'
-          : dbAccessSupport?.browser === 'opera'
-            ? 'Opera'
-            : dbAccessSupport?.browser === 'chrome'
-              ? 'Chrome'
-              : dbAccessSupport?.browser === 'chromium'
-                ? 'Chromium'
-                : 'this browser';
 
   onDestroy(() => {
     if (cooldownTimer) {
       clearInterval(cooldownTimer);
       cooldownTimer = null;
     }
-  });
-
-  onMount(async () => {
-    await refreshDbAccessSupport();
   });
 
   function showToast(message: string, type = TOAST_TYPES.INFO) {
@@ -134,27 +97,13 @@
     mathiProgressVisible = false;
   }
 
-  function openDatabaseStep() {
-    currentStep = 'database';
-    mathiProgressVisible = false;
-    if (!dbAccessSupport.persistentHandle) {
-      resetWizardDropZone('Drag and drop encounters.db here to load it (session only in this browser).', false, false);
-    }
-  }
-
-  async function refreshDbAccessSupport() {
-    if (!api.getDatabaseAccessSupport) return;
-    dbAccessSupport = await api.getDatabaseAccessSupport();
-  }
-
   function openMathimoeStep() {
     currentStep = 'mathimoe';
     mathiProgressVisible = false;
     mathiProgressText = 'Fetching roster from Bible API...';
   }
 
-  function openPreviewStep(source: ImportSource) {
-    importSource = source;
+  function openPreviewStep() {
     currentStep = 'preview';
     mathiProgressVisible = false;
   }
@@ -165,20 +114,6 @@
       return;
     }
     window.location.hash = 'roster';
-  }
-
-  function openDbGuide() {
-    dbGuideOpen = true;
-  }
-
-  function closeDbGuide() {
-    dbGuideOpen = false;
-  }
-
-  function resetWizardDropZone(message: string, success = false, error = false) {
-    wizardDropZoneMessage = message;
-    wizardDropSuccess = success;
-    wizardDropError = error;
   }
 
   function normalizeClass(value: string | null | undefined) {
@@ -227,7 +162,7 @@
     }, 1000);
   }
 
-  async function loadPreviewCharacters(rows: Character[], successMessage: string, source: ImportSource) {
+  async function loadPreviewCharacters(rows: Character[], successMessage: string) {
     const normalizedCharacters = rows
       .map((item) => toPreviewCharacter(item))
       .filter((item) => Boolean(item.name));
@@ -240,7 +175,7 @@
     }
 
     showToast(successMessage, TOAST_TYPES.SUCCESS);
-    openPreviewStep(source);
+    openPreviewStep();
   }
 
   async function importFromMathiMoe() {
@@ -277,7 +212,7 @@
         throw error;
       }
 
-      await loadPreviewCharacters(Array.isArray(rows) ? rows : [], `Preview loaded: ${rows?.length || 0} characters`, 'mathimoe');
+      await loadPreviewCharacters(Array.isArray(rows) ? rows : [], `Preview loaded: ${rows?.length || 0} characters`);
       startMathiCooldown();
       progressText = 'Roster fetched successfully!';
       mathiProgressText = 'Roster fetched successfully!';
@@ -302,130 +237,6 @@
     mathiLoading = false;
     if (currentStep !== 'mathimoe') {
       mathiProgressVisible = false;
-    }
-  }
-
-  function onWizardDropZoneDragEnter(event: DragEvent) {
-    event.preventDefault();
-    wizardDragDepth += 1;
-  }
-
-  function onWizardDropZoneDragLeave(event: DragEvent) {
-    event.preventDefault();
-    wizardDragDepth = Math.max(0, wizardDragDepth - 1);
-  }
-
-  function ensureDbName(name: string) {
-    return String(name || '').toLowerCase().endsWith('.db');
-  }
-
-  async function markWizardDbLoaded(loadedName: string, message: string, toastMessage: string) {
-    wizardDbPath = loadedName;
-    resetWizardDropZone(message, true, false);
-    showToast(toastMessage, TOAST_TYPES.SUCCESS);
-
-    try {
-      const loaded = await api.loadSettings();
-      const merged = {
-        ...(loaded || {}),
-        dbPath: loadedName,
-        dbLastLoadedAt: Date.now(),
-      };
-      await api.saveSettings(merged as Partial<SettingsPayload>);
-      document.dispatchEvent(new CustomEvent('settingsChanged', { detail: { settings: merged } }));
-    } catch {
-      // no-op for UX, but keep telemetry
-      void reportError(new Error('Failed to persist wizard database metadata'), {
-        code: ERROR_CODES.DB.WRITE_FAILED,
-        severity: 'warning',
-        context: {
-          phase: 'markWizardDbLoaded',
-          action: 'persist-wizard-db-metadata',
-          loadedName,
-        },
-        showToast: false,
-      });
-    }
-  }
-
-  async function handleWizardDbHandle(handle: FileSystemFileHandle) {
-    if (!dbAccessSupport.persistentHandle) {
-      const file = await handle.getFile();
-      await handleWizardDbFile(file);
-      showToast(`Persistent file access is unavailable in ${browserName} in this context. For the best experience, please use Chrome, Edge, or Opera.`, TOAST_TYPES.INFO);
-      return;
-    }
-    await api.importDatabaseHandle(handle);
-    const loadedName = handle?.name || 'encounters.db';
-    await markWizardDbLoaded(
-      loadedName,
-      `Loaded: ${loadedName} (persistent when allowed).`,
-      'Database loaded with persistent access (when allowed).'
-    );
-  }
-
-  async function handleWizardDbFile(file: File) {
-    await api.importDatabaseFile(file);
-    const loadedName = file?.name || 'encounters.db';
-    await markWizardDbLoaded(
-      loadedName,
-      `Loaded: ${loadedName} (session only).`,
-      'Database loaded for this session only. For the best experience, please use Chrome, Edge, or Opera.'
-    );
-  }
-
-  async function handleWizardDbDrop(event: DragEvent) {
-    event.preventDefault();
-    wizardDragDepth = 0;
-
-    const transfer = event.dataTransfer;
-    if (!transfer) return;
-
-    const dropResult = await withAsyncError(async () => {
-      const items = transfer.items;
-      if (items?.length) {
-        for (const item of items) {
-          if (item.kind !== 'file') continue;
-          const handle = item.getAsFileSystemHandle ? await item.getAsFileSystemHandle() : null;
-          const fileHandle = handle && handle.kind === 'file' ? handle as FileSystemFileHandle : null;
-          if (fileHandle) {
-            if (!ensureDbName(String(fileHandle.name || ''))) {
-              resetWizardDropZone('Please drop a .db file (encounters.db).', false, true);
-              showToast('Please drop encounters.db.', TOAST_TYPES.ERROR);
-              return;
-            }
-            await handleWizardDbHandle(fileHandle);
-            return;
-          }
-        }
-      }
-
-      const file = transfer.files?.[0];
-      if (!file) {
-        resetWizardDropZone('No file detected in the drop. Please try again.', false, true);
-        return;
-      }
-
-      if (!ensureDbName(file.name)) {
-        resetWizardDropZone('Please drop a .db file (encounters.db).', false, true);
-        showToast('Please drop encounters.db.', TOAST_TYPES.ERROR);
-        return;
-      }
-
-      await handleWizardDbFile(file);
-      return true;
-    }, {
-      code: ERROR_CODES.DB.READ_FAILED,
-      severity: 'error',
-      context: {
-        phase: 'handleWizardDbDrop',
-        action: 'handle-wizard-db-drop',
-      },
-      showToast: true,
-    });
-
-    if (dropResult === null) {
-      resetWizardDropZone('Could not read the dropped file.', false, true);
     }
   }
 
@@ -596,37 +407,6 @@
 
     loading = false;
   }
-
-  async function importFromDatabasePreview() {
-    loading = true;
-    progressText = 'Checking database…';
-
-    await withAsyncError(async () => {
-      const hasDb = await api.checkDatabaseExists();
-      if (!hasDb) {
-        showToast('Drag encounters.db here to continue', TOAST_TYPES.ERROR);
-        return;
-      }
-
-      const rows = await api.getCharactersFromDatabase((message: string) => {
-        progressText = message;
-      });
-
-      await loadPreviewCharacters(Array.isArray(rows) ? (rows as Character[]) : [], `Preview loaded: ${Array.isArray(rows) ? rows.length : 0} characters`, 'database');
-      return true;
-    }, {
-      code: ERROR_CODES.DB.READ_FAILED,
-      severity: 'error',
-      context: {
-        phase: 'importFromDatabasePreview',
-        action: 'import-from-database-preview',
-      },
-      showToast: true,
-    });
-
-    loading = false;
-    if (!progressText) progressText = 'Idle';
-  }
 </script>
 
 {#if currentStep === 'welcome'}
@@ -634,17 +414,6 @@
     <button id="wizard-welcome-close" class="close-btn" type="button" aria-label="Close wizard" on:click={requestModalClose}>×</button>
     <h2 id="wizard-title">Welcome to Weekly Tracker LA!</h2>
     <p>To get started, you can import your characters in two ways:</p>
-
-    <div class="wizard-option">
-      <h3>📁 Database (encounters.db)</h3>
-      <p>Import all characters you have played with LOA Logs open.</p>
-      <ul>
-        <li>Includes class, item level and combat power from recent logs</li>
-        <li>Requires the database file from LOA Logs</li>
-        <li>Automatically imports all detected characters at once</li>
-      </ul>
-      <button id="wizard-database-btn" class="wizard-primary-btn" type="button" on:click={openDatabaseStep}>Import from Database</button>
-    </div>
 
     <div class="wizard-option">
       <h3 class="wizard-option-title-with-icon">
@@ -663,49 +432,6 @@
     <div class="wizard-manual">
       <p>Or add your characters manually:</p>
       <button id="wizard-manual-btn" class="wizard-secondary-btn" type="button" on:click={openManualFlow}>Add Manually</button>
-    </div>
-  </section>
-{:else if currentStep === 'database'}
-  <section id="wizard-tab">
-    <button id="wizard-database-close" class="close-btn" type="button" aria-label="Close wizard" on:click={requestModalClose}>×</button>
-    <h2>Configure Database</h2>
-    <p>Drag the Lost Ark <strong>encounters.db</strong> file here:</p>
-
-    <div class="wizard-info">
-      <h4>📍 Typical location:</h4>
-      <code>C:\Users\YourUsername\AppData\Local\LOA Logs\encounters.db</code>
-    </div>
-
-    <div class="form-group">
-      <label for="wizard-db-path">Selected file:</label>
-      <div class="file-input-group">
-        <input id="wizard-db-path" type="text" readonly placeholder="No file loaded" value={wizardDbPath} />
-      </div>
-    </div>
-
-    <button id="wizard-open-db-guide-btn" class="db-guide-btn" type="button" on:click={openDbGuide}>How to find encounters.db?</button>
-
-    <div
-      id="wizard-db-drop-zone"
-      class={`db-drop-zone ${wizardDropSuccess ? 'success' : ''} ${wizardDropError ? 'error' : ''} ${wizardDragDepth > 0 ? 'dragover' : ''}`}
-      aria-label="Drop encounters.db here"
-      role="region"
-      on:dragenter={onWizardDropZoneDragEnter}
-      on:dragover|preventDefault
-      on:dragleave={onWizardDropZoneDragLeave}
-      on:drop={handleWizardDbDrop}
-    >
-      {wizardDropZoneMessage}
-    </div>
-
-    <div id="wizard-db-copy-progress" class="db-copy-progress" style="display:none;">
-      <div class="db-copy-progress__bar" id="wizard-db-copy-progress-bar" style="width:0%"></div>
-      <span class="db-copy-progress__label" id="wizard-db-copy-progress-label">Copying… 0%</span>
-    </div>
-
-    <div class="modal-buttons">
-      <button id="wizard-db-back-btn" class="wizard-secondary-btn" type="button" on:click={openWelcomeStep}>Back</button>
-      <button id="wizard-db-continue-btn" class="wizard-primary-btn" type="button" disabled={!wizardCanContinueDb || loading} on:click={importFromDatabasePreview}>Continue</button>
     </div>
   </section>
 {:else if currentStep === 'mathimoe'}
@@ -809,10 +535,8 @@
     </div>
 
     <div class="modal-buttons">
-      <button id="wizard-preview-back-btn" class="wizard-secondary-btn" type="button" on:click={importSource === 'database' ? openDatabaseStep : openMathimoeStep}>Back</button>
+      <button id="wizard-preview-back-btn" class="wizard-secondary-btn" type="button" on:click={openMathimoeStep}>Back</button>
       <button id="wizard-preview-import-btn" class="wizard-primary-btn" type="button" disabled={!selectedCount || loading || mathiLoading} on:click={importSelectedCharacters}>{importLabel}</button>
     </div>
   </section>
 {/if}
-
-<DbGuideModal open={dbGuideOpen} on:close={closeDbGuide} />
