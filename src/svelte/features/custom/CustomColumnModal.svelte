@@ -243,7 +243,7 @@
                     >
                       <span style="color:{TYPE_META[col.type].color}">{TYPE_META[col.type].icon}</span>
                     </button>
-                    {#each PRESET_COLORS as { hex, label }}
+                    {#each PRESET_COLORS as { hex, label } (hex)}
                       <button
                         type="button"
                         class="ccm-color-swatch"

@@ -1,7 +1,24 @@
 {
   "name": "weeklytrackerla-svelte-only",
   "version": "0.1.0",
+  "description": "Weekly raid tracker for Lost Ark with roster, friends sync, and custom tabs.",
+  "license": "AGPL-3.0-only",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RaimundoMedeiros/loatracker.git"
+  },
+  "bugs": {
+    "url": "https://github.com/RaimundoMedeiros/loatracker/issues"
+  },
+  "homepage": "https://github.com/RaimundoMedeiros/loatracker#readme",
+  "keywords": [
+    "lost-ark",
+    "svelte",
+    "tracker",
+    "roster",
+    "vite"
+  ],
   "type": "module",
   "scripts": {
     "dev": "vite --mode svelte",
@@ -11,8 +28,8 @@
     "lint": "eslint \"src/svelte/**/*.ts\" \"src/types/**/*.ts\"",
     "lint:fix": "npm run lint -- --fix",
     "lint:svelte": "eslint \"src/**/*.svelte\"",
-    "test": "vitest",
-    "test:run": "vitest run",
+    "test": "vitest --passWithNoTests",
+    "test:run": "vitest run --passWithNoTests",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",

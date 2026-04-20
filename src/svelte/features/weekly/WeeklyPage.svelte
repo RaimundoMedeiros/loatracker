@@ -309,13 +309,13 @@
     node.focus();
   }
 
-  function refreshCustomColumnsForCards() {
+  function refreshCustomColumnsForCards(cards: WeeklyCardSnapshot[]) {
     const nextCols: Record<string, CustomColumnsState> = { ...customColumnsStateByRoster };
     const nextPinned: Record<string, string[]> = { ...pinnedCustomColsByRoster };
     const nextValues: Record<string, CustomTabValues> = { ...customTabValuesCache };
     const nextWidths: Record<string, Record<string, number>> = { ...customColWidthsByRoster };
     let changed = false;
-    for (const card of weeklyCards) {
+    for (const card of cards) {
       if (!nextCols[card.rosterId]) {
         nextCols[card.rosterId] = loadColumns(card.rosterId);
         changed = true;
@@ -365,7 +365,7 @@
     dailyData,
     hiddenColumns
   );
-  $: weeklyCards, refreshCustomColumnsForCards();
+  $: refreshCustomColumnsForCards(weeklyCards);
 
   function debugWeekly(step: string, payload?: Record<string, unknown>) {
     if (!WEEKLY_DEBUG_ENABLED) {

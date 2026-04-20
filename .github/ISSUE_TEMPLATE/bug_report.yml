@@ -1,0 +1,63 @@
+name: Bug report
+description: Report a reproducible problem in the application
+title: "bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please provide enough details so we can reproduce the issue.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened?
+      placeholder: Clear and concise bug summary
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List exact steps
+      placeholder: |
+        1. Open ...
+        2. Click ...
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser / Version
+      placeholder: Chrome 124, Firefox 126, etc.
+
+  - type: input
+    id: app-version
+    attributes:
+      label: App version / commit
+      placeholder: v0.1.0 or commit hash
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Extra context (logs/screenshots)
+      render: shell

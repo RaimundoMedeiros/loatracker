@@ -10,10 +10,6 @@
   export let selfPin = '';
   export let selfPinInputType: 'text' | 'password' = 'password';
   export let selfPinVisible = false;
-
-  // Compute locally so the input type is always in sync with selfPinVisible,
-  // regardless of prop update timing from the parent.
-  $: localPinInputType = selfPinVisible ? 'text' : 'password';
   export let disableUpload = true;
   export let loading = false;
   export let configured = false;
@@ -133,7 +129,7 @@
             <div class="friends-self-pin-input-wrap">
               <input
                 id="friends-self-pin-input"
-                type={localPinInputType}
+                type={selfPinInputType}
                 maxlength="32"
                 value={selfPin}
                 on:input={(event) => onSelfPinInput(String((event.currentTarget as HTMLInputElement | null)?.value || ''))}

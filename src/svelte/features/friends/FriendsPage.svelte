@@ -50,9 +50,11 @@
   let selfCodeVisible = false;
   let selfPinVisible = false;
   let setupVisible = false;
-  let _disableUpload = true;
-  let _uploadTitle = '';
-  let _disableSetupUpload = true;
+  let _maskedSelfCode: string;
+  let _selfPinInputType: 'text' | 'password';
+  let _disableUpload: boolean;
+  let _uploadTitle: string;
+  let _disableSetupUpload: boolean;
   let editingAliasFriendId = '';
   let aliasDraft = '';
   let rows: FriendRow[] = [];

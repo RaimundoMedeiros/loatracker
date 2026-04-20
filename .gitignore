@@ -4,10 +4,11 @@ dist/
 *.log
 .env
 .env.*
+!.env.example
 cloudflare/
+worker.js
 # local API tester (do not commit)
 tools/ags-api-tester.mjs
-.env.example
 supabase/
 
 # editor

@@ -15,6 +15,8 @@ export default defineConfig({
     exclude: ['wa-sqlite'],
   },
   server: {
+    host: true,
+    port: 5173,
     proxy: {
       '/proxy/mathi': {
         target: 'https://uwowo.ychainstyle.workers.dev',

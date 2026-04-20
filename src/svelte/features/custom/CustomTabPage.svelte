@@ -37,12 +37,12 @@
   let confirmReset = false;
   // ── COLUMN RESIZE (disabled — re-enable in future build) ──────────────────
   let resizingCol: { id: string; startX: number; startW: number; minW: number } | null = null; // kept for future re-enable
-  // let isResizing = false;
-  // let _resizeColEl: HTMLElement | null = null;
-  // let _resizeCharColEl: HTMLElement | null = null;
-  // let _resizeTableEl: HTMLTableElement | null = null;
-  // let _resizeRaf: number | null = null;
-  // let _resizePendingW = 0;
+  let isResizing = false;
+  let _resizeColEl: HTMLElement | null = null;
+  let _resizeCharColEl: HTMLElement | null = null;
+  let _resizeTableEl: HTMLTableElement | null = null;
+  let _resizeRaf: number | null = null;
+  let _resizePendingW = 0;
   let wrapperW = 0; // bound to .ct-table-wrapper clientWidth
   let unsubscribeRosterChanges: (() => void) | null = null;
 
@@ -51,7 +51,7 @@
   $: globalCols = sorted.filter((col) => col.scope === 'global');
   $: hasGlobalCols = globalCols.length > 0;
   $: hasColumns = sorted.length > 0;
-  $: hasColWidths = false; // disabled while resize is off
+  const hasColWidths = false; // disabled while resize is off
   // $: hasColWidths = Object.keys(columnsState.colWidths ?? {}).length > 0;
 
   $: colsSum = hasColWidths
@@ -490,6 +490,8 @@
             <div
               class="ct-global-card"
               class:ct-global-card--dragging={draggingColId === col.id}
+              role="group"
+              aria-label="Global column {col.title}"
               draggable="true"
               on:dragstart={(e) => onHeaderDragStart(e, col.id)}
               on:dragend={onHeaderDragEnd}
@@ -840,40 +842,6 @@
 
   .ct-th--dragging {
     opacity: 0.35;
-  }
-
-  .ct-th--resizing {
-    background: color-mix(in srgb, var(--color-primary) 7%, var(--color-surface-hover)) !important;
-  }
-
-  /* Column resize handle */
-  .ct-resize-handle {
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 6px;
-    height: 100%;
-    cursor: col-resize;
-    z-index: 3;
-    user-select: none;
-  }
-
-  .ct-resize-handle::after {
-    content: '';
-    position: absolute;
-    right: 1px;
-    top: 15%;
-    width: 2px;
-    height: 70%;
-    background: transparent;
-    border-radius: 1px;
-    transition: background var(--transition-fast), box-shadow var(--transition-fast);
-  }
-
-  .ct-resize-handle:hover::after,
-  .ct-resize-handle--active::after {
-    background: color-mix(in srgb, var(--color-primary) 75%, transparent);
-    box-shadow: 0 0 4px color-mix(in srgb, var(--color-primary) 35%, transparent);
   }
 
   .ct-th-inner {

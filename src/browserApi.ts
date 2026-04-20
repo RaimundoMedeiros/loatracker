@@ -337,82 +337,6 @@ async function getWeeklyResetPeriod(): Promise<{ start: number; end: number }> {
   return getWeeklyResetPeriodValue();
 }
 
-// Daily/raid-related stubs for web build. These can be enhanced later or
-// fed by a cached import result.
-const TRACKED_WEEKLY_BOSSES = [
-  'Aegir, the Oppressor',
-  'Phantom Manifester Brelshaza',
-  'Mordum, the Abyssal Punisher',
-  'Flash of Punishment',
-  'Armoche, Sentinel of the Abyss',
-  'Archdemon Kazeros',
-  'Death Incarnate Kazeros',
-  'Corvus Tul Rak',
-];
-
-const GUARDIAN_BOSSES = ['Argeos', 'Skolakia', 'Drextalas', 'Krathios', "Krathios's Tail"];
-const FIELD_BOSS_NAMES = ['Sevek Atun', 'Field Boss: Sevek Atun'];
-const CHAOS_GATE_NAMES = ['Soft Bean Legion Honey-Filled Tricolor Sweetcake', 'Darkness Legion Kiril'];
-
-// Normalize legacy/alt class names from encounters.db to current roster enum
-const CLASS_ALIASES: Record<string, string> = {
-  'arcana': 'Arcanist',
-  'arcana (arcanist)': 'Arcanist',
-  'scouter': 'Machinist',
-  'lancaira': 'Glaivier',
-  'lance master': 'Glaivier',
-  'lancemaster': 'Glaivier',
-  'battle master': 'Wardancer',
-  'battlemaster': 'Wardancer',
-  'infighter': 'Scrapper',
-  'soul master': 'Soulfist',
-  'holy knight': 'Paladin',
-  'warlord': 'Gunlancer',
-  'devil hunter': 'Deadeye',
-  'hawkeye': 'Sharpshooter',
-  'bard': 'Bard',
-  'summoner': 'Summoner',
-  'witch': 'Sorceress',
-  'artillerist': 'Artillerist',
-  'striker': 'Striker',
-  'wardancer': 'Wardancer',
-  'scrapper': 'Scrapper',
-  'soulfist': 'Soulfist',
-  'glaivier': 'Glaivier',
-  'machinist': 'Machinist',
-  'gunslinger': 'Gunslinger',
-  'artist': 'Artist',
-  'aeromancer': 'Aeromancer',
-  'wildsoul': 'Wildsoul',
-  'breaker': 'Breaker',
-  'souleater': 'Souleater',
-  'reaper': 'Reaper',
-  'shadowhunter': 'Shadowhunter',
-  'deathblade': 'Deathblade',
-  'berserker': 'Berserker',
-  'destroyer': 'Destroyer',
-  'gunlancer': 'Gunlancer',
-  'paladin': 'Paladin',
-  'slayer': 'Slayer',
-  'valkyrie': 'Valkyrie',
-  'guardian knight': 'Guardian Knight',
-  'guardianknight': 'Guardian Knight',
-};
-
-const CLASS_CANONICAL = new Set(Object.values(CLASS_ALIASES));
-
-function getDailyResetPeriod(now = new Date()) {
-  const start = new Date(now);
-  // Daily reset is 10:00 UTC; before that, use yesterday 10:00 UTC
-  if (start.getUTCHours() < 10) {
-    start.setUTCDate(start.getUTCDate() - 1);
-  }
-  start.setUTCHours(10, 0, 0, 0);
-  const end = new Date(start);
-  end.setUTCDate(end.getUTCDate() + 1);
-  return { start: start.getTime(), end: end.getTime() };
-}
-
 async function getRaids(): Promise<unknown> {
   try {
     return await dbBridge.getRaids();
@@ -472,7 +396,7 @@ async function browseDatabaseFile(): Promise<string | null> {
       await persistHandle(handle);
       await loadDatabaseFromHandle(handle);
       return uploadedDbName;
-    } catch (err) {
+    } catch {
       // User cancel or unsupported startIn; fall through to input picker
       return null;
     }
@@ -498,7 +422,7 @@ async function browseDatabaseFile(): Promise<string | null> {
       try {
         await loadDatabaseFromFile(file);
         resolve(uploadedDbName);
-      } catch (_) {
+      } catch {
         resolve(null);
       }
       input.remove();
@@ -582,7 +506,7 @@ async function loadPersistedHandle(): Promise<FileSystemFileHandleLike | null> {
     });
     db.close();
     return handle || null;
-  } catch (err) {
+  } catch {
     return null;
   }
 }
@@ -794,17 +718,6 @@ async function getCharactersFromDatabase(onProgress?: (message: string) => void)
     console.error('Failed to read encounters.db', err);
     throw err;
   }
-}
-
-function normalizeClass(rawClass: unknown): string | null {
-  const key = String(rawClass || '').toLowerCase().trim();
-  const mapped = CLASS_ALIASES[key];
-  if (mapped && CLASS_CANONICAL.has(mapped)) return mapped;
-  // If already canonical (case-insensitive), return canonical casing
-  for (const canonical of CLASS_CANONICAL) {
-    if (canonical.toLowerCase() === key) return canonical;
-  }
-  return null;
 }
 
 // Logging no-ops
