@@ -25,8 +25,37 @@ body:
     attributes:
       label: Alternatives considered
 
-  - type: textarea
+  - type: dropdown
     id: scope
     attributes:
-      label: Scope impact
-      description: Which areas are affected? (weekly, roster, friends, custom, settings)
+      label: Affected area
+      options:
+        - Weekly Tracker
+        - Roster Management
+        - Friends Sync
+        - Custom Tab
+        - Settings
+        - Daily Tracking
+        - Database Import
+        - New feature area
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this to your workflow?
+      options:
+        - Nice to have
+        - Important
+        - Critical
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contribution
+      options:
+        - label: I'd like to work on this myself
