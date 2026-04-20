@@ -20,7 +20,7 @@ type HandlerPayloads = {
   getDailyFieldBoss: { rosterNames?: string[] };
   getDailyChaosGate: { rosterNames?: string[] };
   getWeeklyThaemine: { rosterNames?: string[] };
-  getCharactersFromDatabase: Record<string, never>;
+
 };
 
 type HandlerMap = {
@@ -47,65 +47,6 @@ const CHAOS_GATE_NAMES = [
   'Mayhem Legion Stella'
 ];
 const THAEMINE_BOSS_NAME = 'Thaemine, Conqueror of Stars';
-const CHARACTER_IMPORT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
-
-const CLASS_ALIASES: Record<string, string> = {
-  arcana: 'Arcanist',
-  'arcana (arcanist)': 'Arcanist',
-  scouter: 'Machinist',
-  'lancaira': 'Glaivier',
-  'lance master': 'Glaivier',
-  lancemaster: 'Glaivier',
-  'battle master': 'Wardancer',
-  battlemaster: 'Wardancer',
-  infighter: 'Scrapper',
-  'soul master': 'Soulfist',
-  'holy knight': 'Paladin',
-  warlord: 'Gunlancer',
-  'devil hunter': 'Deadeye',
-  hawkeye: 'Sharpshooter',
-  bard: 'Bard',
-  summoner: 'Summoner',
-  witch: 'Sorceress',
-  artillerist: 'Artillerist',
-  striker: 'Striker',
-  wardancer: 'Wardancer',
-  scrapper: 'Scrapper',
-  soulfist: 'Soulfist',
-  glaivier: 'Glaivier',
-  machinist: 'Machinist',
-  gunslinger: 'Gunslinger',
-  artist: 'Artist',
-  aeromancer: 'Aeromancer',
-  wildsoul: 'Wildsoul',
-  breaker: 'Breaker',
-  souleater: 'Souleater',
-  reaper: 'Reaper',
-  shadowhunter: 'Shadowhunter',
-  deathblade: 'Deathblade',
-  berserker: 'Berserker',
-  destroyer: 'Destroyer',
-  gunlancer: 'Gunlancer',
-  paladin: 'Paladin',
-  slayer: 'Slayer',
-  valkyrie: 'Valkyrie',
-  'guardian knight': 'Guardian Knight',
-  guardianknight: 'Guardian Knight',
-};
-
-const CLASS_CANONICAL = new Set(Object.values(CLASS_ALIASES));
-
-function normalizeClass(rawClass: unknown): string | null {
-  const key = String(rawClass || '').toLowerCase().trim();
-  const mapped = CLASS_ALIASES[key];
-  if (mapped && CLASS_CANONICAL.has(mapped)) return mapped;
-
-  for (const canonical of CLASS_CANONICAL) {
-    if (canonical.toLowerCase() === key) return canonical;
-  }
-
-  return null;
-}
 
 function getWeeklyResetPeriod(now = new Date()): ResetPeriod {
   const end = new Date(now);
@@ -410,85 +351,6 @@ async function handleGetDailyChaosGate({ rosterNames }: HandlerPayloads['getDail
   };
 }
 
-async function handleGetCharactersFromDatabase() {
-  self.postMessage({ type: 'progress', message: 'Scanning encounters from the last 30 days…' });
-
-  const maxFightRows = await queryObjects(
-    `SELECT MAX(fight_start) AS max_fight_start
-     FROM encounter_preview
-     WHERE fight_start IS NOT NULL`
-  );
-  const latestFightStart = Number(maxFightRows[0]?.max_fight_start ?? 0);
-
-  if (!Number.isFinite(latestFightStart) || latestFightStart <= 0) {
-    self.postMessage({ type: 'progress', message: 'No encounter history found in database.' });
-    return [];
-  }
-
-  const windowStart = latestFightStart - CHARACTER_IMPORT_WINDOW_MS;
-
-  const countRows = await queryObjects(
-    `SELECT COUNT(DISTINCT local_player) AS cnt
-     FROM encounter_preview
-     WHERE local_player IS NOT NULL
-       AND local_player != ''
-       AND fight_start >= ?
-       AND fight_start <= ?`,
-    [windowStart, latestFightStart],
-  );
-  const playerCount = Number(countRows[0]?.cnt ?? 0);
-
-  self.postMessage({
-    type: 'progress',
-    message: `Found ${playerCount} players, loading character details…`,
-  });
-
-  const sql = `
-    WITH recent_players AS (
-      SELECT DISTINCT local_player
-      FROM encounter_preview
-      WHERE local_player IS NOT NULL
-        AND local_player != ''
-        AND fight_start >= ?
-        AND fight_start <= ?
-    ),
-    best_entity AS (
-      SELECT
-        e.name, e.class, e.gear_score, e.combat_power,
-        ROW_NUMBER() OVER (PARTITION BY e.name ORDER BY e.combat_power DESC) AS rn
-      FROM entity e
-      INNER JOIN recent_players rp ON e.name = rp.local_player
-      WHERE e.class IS NOT NULL
-        AND e.gear_score IS NOT NULL
-        AND e.combat_power IS NOT NULL
-    )
-    SELECT name, class, gear_score, combat_power
-    FROM best_entity
-    WHERE rn = 1
-    ORDER BY combat_power DESC`;
-
-  const rows = await queryObjects(sql, [windowStart, latestFightStart]);
-  const characters: Array<{ name: unknown; class: string; ilvl: number; combatPower: number }> = [];
-
-  for (const row of rows) {
-    const normalizedClass = normalizeClass(row.class);
-    if (!normalizedClass) continue;
-
-    characters.push({
-      name: row.name,
-      class: normalizedClass,
-      ilvl: Number(row.gear_score) || 0,
-      combatPower: Number(row.combat_power) || 0,
-    });
-
-    if (characters.length % 25 === 0) {
-      self.postMessage({ type: 'progress', message: `Loading characters: ${characters.length}…` });
-    }
-  }
-
-  self.postMessage({ type: 'progress', message: `Loaded ${characters.length} characters` });
-  return characters;
-}
 
 async function handleGetWeeklyThaemine({ rosterNames }: HandlerPayloads['getWeeklyThaemine']) {
   if (!Array.isArray(rosterNames) || !rosterNames.length) return false;
@@ -533,7 +395,6 @@ const HANDLERS: HandlerMap = {
   getDailyFieldBoss: handleGetDailyFieldBoss,
   getDailyChaosGate: handleGetDailyChaosGate,
   getWeeklyThaemine: handleGetWeeklyThaemine,
-  getCharactersFromDatabase: handleGetCharactersFromDatabase,
 };
 
 self.onmessage = async ({ data }: MessageEvent<WorkerRequest>) => {

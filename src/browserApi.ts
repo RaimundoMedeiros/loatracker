@@ -1,5 +1,5 @@
 import { dbBridge } from './dbBridge';
-import type { AppApi, CharacterImportRow } from './types/app-api';
+import type { AppApi } from './types/app-api';
 
 type PermissionResult = 'granted' | 'denied' | 'prompt' | 'unknown';
 type DbAccessSupport = Awaited<ReturnType<AppApi['getDatabaseAccessSupport']>>;
@@ -710,15 +710,6 @@ async function fetchRosterByGuid() {
   return null;
 }
 
-async function getCharactersFromDatabase(onProgress?: (message: string) => void): Promise<CharacterImportRow[]> {
-  try {
-    const rows = await dbBridge.getCharactersFromDatabase(onProgress);
-    return Array.isArray(rows) ? rows as CharacterImportRow[] : [];
-  } catch (err) {
-    console.error('Failed to read encounters.db', err);
-    throw err;
-  }
-}
 
 // Logging no-ops
 async function logDebug() { return true; }
@@ -748,7 +739,6 @@ const api: AppApi = {
   saveRoster,
   loadCharacterData,
   saveCharacterData,
-  getCharactersFromDatabase,
   browseDatabaseFile,
   checkDatabaseExists,
   getDatabaseAccessSupport,

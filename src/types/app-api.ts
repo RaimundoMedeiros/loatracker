@@ -91,7 +91,7 @@ export interface AppApi {
   getDailyChaosGate(rosterNames: string[]): Promise<false | { completed: true; boss: string; timestamp: number }>;
   getWeeklyThaemine(rosterNames: string[]): Promise<false | { completed: true; boss: string; timestamp: number }>;
 
-  getCharactersFromDatabase(onProgress?: (message: string) => void): Promise<CharacterImportRow[]>;
+
 
   checkDatabaseExists(): Promise<boolean>;
   getDatabaseAccessSupport(): Promise<DbAccessSupport>;

@@ -135,16 +135,6 @@ class DbBridge {
     return this.#send('getWeeklyThaemine', { rosterNames });
   }
 
-  async getCharactersFromDatabase(onProgress?: (msg: string) => void) {
-    await this.init();
-    this.#progressCallback = onProgress ?? null;
-
-    try {
-      return await this.#send('getCharactersFromDatabase');
-    } finally {
-      this.#progressCallback = null;
-    }
-  }
 }
 
 const dbBridge = new DbBridge();
