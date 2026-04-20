@@ -44,6 +44,7 @@
     difficulty: Difficulty;
     hidden: boolean;
     chestOpened: boolean;
+    chestOpenCount: number;
     timestamp: string | null;
   };
 
@@ -93,8 +94,11 @@
     difficulty: 'Solo',
     hidden: false,
     chestOpened: false,
+    chestOpenCount: 0,
     timestamp: null,
   };
+
+  const DOUBLE_CHEST_RAID_IDS = new Set(['aegir', 'brel', 'mordum', 'armoche']);
 
   let loading = false;
   let activeRosterId = '';
@@ -1142,11 +1146,18 @@
       return { ...DEFAULT_RAID_CELL };
     }
 
+    const rawOpenCount = Number((cell as { chestOpenCount?: unknown }).chestOpenCount);
+    const fallbackOpenCount = (cell as RaidCell).chestOpened ? 1 : 0;
+    const maxChestOpenCount = getMaxChestOpenCountForBoss(boss);
+    const parsedOpenCount = Number.isFinite(rawOpenCount) ? Math.floor(rawOpenCount) : fallbackOpenCount;
+    const chestOpenCount = Math.max(0, Math.min(maxChestOpenCount, parsedOpenCount));
+
     return {
       cleared: Boolean((cell as RaidCell).cleared),
       difficulty: normalizeDifficulty((cell as RaidCell).difficulty),
       hidden: Boolean((cell as RaidCell).hidden),
-      chestOpened: Boolean((cell as RaidCell).chestOpened),
+      chestOpened: chestOpenCount > 0,
+      chestOpenCount,
       timestamp: (cell as RaidCell).timestamp || null,
     };
   }
@@ -1160,6 +1171,12 @@
   function getRaidLabel(boss: string) {
     const raid = getRaidConfigByBoss(boss) as { label?: string } | undefined;
     return String(raid?.label || boss);
+  }
+
+  function getMaxChestOpenCountForBoss(boss: string) {
+    const raid = getRaidConfigByBoss(boss) as { id?: string } | undefined;
+    const raidId = String(raid?.id || normalizeRaidBossId(boss) || '').toLowerCase();
+    return DOUBLE_CHEST_RAID_IDS.has(raidId) ? 2 : 1;
   }
 
   function isEligibleForRoster(
@@ -1937,9 +1954,12 @@
     }
 
     const current = getRaidCell(nextCharacterData, characterName, boss);
+    const maxChestOpenCount = getMaxChestOpenCountForBoss(boss);
+    const nextChestOpenCount = (current.chestOpenCount + 1) % (maxChestOpenCount + 1);
     nextCharacterData[characterName][boss] = {
       ...current,
-      chestOpened: !current.chestOpened,
+      chestOpened: nextChestOpenCount > 0,
+      chestOpenCount: nextChestOpenCount,
     };
 
     nextCharacterData[characterName] = { ...nextCharacterData[characterName] };
@@ -2537,18 +2557,20 @@
         ? 'nmr'
         : (cell.difficulty === 'Hard' ? 'hm' : 'nm');
       const chestCost = Number((raid as any).chest?.[diff] || 0);
+      const chestOpenCount = Math.max(0, Math.floor(Number(cell.chestOpenCount || 0)));
+      const totalChestCost = chestCost * chestOpenCount;
 
       if (!cell.cleared) return;
 
       if (cell.hidden) {
-        if (cell.chestOpened) {
-          total -= chestCost;
+        if (chestOpenCount > 0) {
+          total -= totalChestCost;
         }
         return;
       }
 
       const goldValue = Number((raid as any).gold?.[diff] || 0);
-      total += cell.chestOpened ? (goldValue - chestCost) : goldValue;
+      total += goldValue - totalChestCost;
     });
 
     const extra = Number((cardCharacterData?.[characterName] as CharacterBossData | undefined)?._extraGold || 0);
@@ -2867,12 +2889,17 @@
                           <span
                             class="chest-icon"
                             class:active={cell.chestOpened}
+                            class:double={cell.chestOpenCount > 1}
                             role="button"
                             tabindex="0"
-                            title="Chest opened"
+                            title={cell.chestOpenCount > 1 ? 'Chest opened 2x' : (cell.chestOpened ? 'Chest opened' : 'Chest closed')}
                             on:click={() => toggleChest(card.rosterId, characterName, boss)}
                             on:keydown={(event) => (event.key === 'Enter' || event.key === ' ') && toggleChest(card.rosterId, characterName, boss)}
-                          ></span>
+                          >
+                            {#if cell.chestOpenCount > 1}
+                              <span class="chest-open-count-badge" aria-hidden="true">{cell.chestOpenCount}</span>
+                            {/if}
+                          </span>
                         </div>
                       {/if}
                     </td>
