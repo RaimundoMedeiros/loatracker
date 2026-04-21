@@ -52,13 +52,15 @@
     margin: 0 auto;
 }
 
-/* Main content adapts to cards and scrolls when needed */
+/* Main content fills viewport width; tab content centers within */
 #main-content {
-    width: max-content;
+    width: 100%;
     max-width: 100%;
-    margin: 0 auto;
+    margin: 0;
     overflow-x: auto;
     overflow-y: visible;
+    padding-bottom: calc(var(--spacing-xl) + 64px);
+    box-sizing: border-box;
 }
 
 .weekly-card {

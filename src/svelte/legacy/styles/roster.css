@@ -315,14 +315,6 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 5px 8px;
-    border: 1px solid color-mix(in srgb, var(--color-border-light) 56%, var(--color-border));
-    border-radius: var(--radius-md);
-    background: linear-gradient(180deg,
-        color-mix(in srgb, var(--color-surface-light) 90%, var(--color-surface)) 0%,
-        color-mix(in srgb, var(--color-surface) 88%, var(--color-bg-darker)) 100%);
-    box-shadow: var(--shadow-sm);
-    backdrop-filter: blur(2px);
 }
 
 .roster-switcher {
@@ -331,6 +323,7 @@
     gap: 6px;
     margin-right: 0;
     min-width: 0;
+    position: relative;
 }
 
 .roster-select {
@@ -344,7 +337,9 @@
     cursor: pointer;
     transition: all 0.2s;
     min-width: 164px;
-    height: 31px;
+    height: 40px;
+    box-sizing: border-box;
+    line-height: 1;
 }
 
 .roster-select:hover {
@@ -352,46 +347,23 @@
     background: var(--color-surface-hover);
 }
 
-.roster-meta-chip {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 58px;
-    height: 28px;
-    padding: 0 7px;
-    border-radius: var(--radius-md);
-    border: 1px solid color-mix(in srgb, var(--color-border-light) 62%, var(--color-border));
-    background: color-mix(in srgb, var(--color-surface-light) 88%, var(--color-surface));
-    color: var(--color-text-secondary);
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
-    white-space: nowrap;
-}
-
-.roster-actions {
-    display: flex;
-    gap: 5px;
-}
-
-.roster-actions .btn-icon {
+.roster-switcher .roster-settings-btn {
     background: color-mix(in srgb, var(--color-surface-light) 88%, var(--color-surface));
     border: 1px solid color-mix(in srgb, var(--color-border-light) 56%, var(--color-border));
     color: var(--color-text-secondary);
-    width: 29px;
-    height: 29px;
+    width: 40px;
+    height: 40px;
+    box-sizing: border-box;
     border-radius: var(--radius-md);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     transition: all 0.2s;
-    font-size: 0.84rem;
     padding: 0;
 }
 
-.roster-actions .btn-icon:hover:not(:disabled) {
+.roster-switcher .roster-settings-btn:hover:not(:disabled) {
     background: color-mix(in srgb, var(--color-primary) 22%, var(--color-surface));
     border-color: color-mix(in srgb, var(--color-primary) 52%, var(--color-border));
     color: var(--color-primary);
@@ -399,15 +371,10 @@
     box-shadow: var(--shadow-sm);
 }
 
-.roster-actions .btn-icon.active {
+.roster-switcher .roster-settings-btn.active {
     background: color-mix(in srgb, var(--color-primary) 24%, var(--color-surface));
     border-color: color-mix(in srgb, var(--color-primary) 56%, var(--color-border));
     color: var(--color-primary);
-}
-
-.roster-actions .btn-icon:disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
 }
 
 .btn-error {
@@ -420,35 +387,73 @@
     background: color-mix(in srgb, var(--color-error) 85%, var(--color-bg-dark));
 }
 
-#roster-switcher-container .visible-rosters-popover {
+#roster-switcher-container .roster-settings-menu {
+    position: absolute;
     top: calc(100% + 8px);
     right: 0;
-    left: auto;
+    z-index: 85;
     width: 300px;
-    border-color: color-mix(in srgb, var(--color-border-light) 58%, var(--color-border));
+    padding: 10px;
+    display: grid;
+    gap: 10px;
+    border: 1px solid color-mix(in srgb, var(--color-border-light) 58%, var(--color-border));
+    border-radius: var(--radius-md);
     background: linear-gradient(180deg,
         color-mix(in srgb, var(--color-surface-light) 92%, var(--color-surface)) 0%,
         color-mix(in srgb, var(--color-surface) 90%, var(--color-bg-darker)) 100%);
-    z-index: 80;
+    box-shadow: var(--shadow-lg);
 }
 
-#roster-switcher-container .visible-rosters-popover__header {
-    color: var(--color-primary);
-    letter-spacing: 0.02em;
-    padding: 2px 2px 4px;
-}
-
-#roster-switcher-container .visible-rosters-list {
+#roster-switcher-container .roster-settings-menu__section {
+    display: flex;
+    flex-direction: column;
     gap: 6px;
 }
 
-#roster-switcher-container .visible-rosters-item {
+#roster-switcher-container .roster-settings-menu__section + .roster-settings-menu__section {
+    padding-top: 8px;
+    border-top: 1px solid color-mix(in srgb, var(--color-border-light) 40%, transparent);
+}
+
+#roster-switcher-container .roster-settings-menu__label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-primary);
+}
+
+#roster-switcher-container .roster-settings-menu__value {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+#roster-switcher-container .roster-settings-menu__actions {
+    gap: 6px;
+}
+
+#roster-switcher-container .roster-settings-menu__actions .btn-icon-text {
+    justify-content: flex-start;
+    text-align: left;
+}
+
+#roster-switcher-container .roster-settings-menu__actions .btn-icon-text.danger {
+    color: var(--color-error);
+    border-color: color-mix(in srgb, var(--color-error) 40%, var(--color-border));
+}
+
+#roster-switcher-container .roster-settings-menu .visible-rosters-list {
+    gap: 6px;
+}
+
+#roster-switcher-container .roster-settings-menu .visible-rosters-item {
     min-height: 34px;
     padding: 6px 10px;
     transition: border-color var(--transition-fast), background-color var(--transition-fast);
 }
 
-#roster-switcher-container .visible-rosters-item:hover {
+#roster-switcher-container .roster-settings-menu .visible-rosters-item:hover {
     border-color: color-mix(in srgb, var(--color-primary) 44%, var(--color-border));
     background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface-light));
 }
