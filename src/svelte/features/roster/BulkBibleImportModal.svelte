@@ -7,19 +7,16 @@
   import { withAsyncError } from '../../utils/errorWrappers';
   import { ERROR_CODES } from '../../utils/errorCodes';
   import { notifyRosterChanged } from '../../stores/rosterSync';
-  import { normalizeCharacter } from './rosterDomain';
+  import {
+    normalizeBibleClass,
+    normalizeBibleCombatPower,
+    normalizeBibleIlvl,
+    normalizeCharacter,
+  } from './rosterDomain';
 
-  /**
-   * Bulk-import wizard that fetches a full roster from the Bible API and lets
-   * the user cherry-pick which characters to add or update against the
-   * currently visible roster. Characters that already exist in the roster are
-   * rendered as "will update" (checked by default) so the flow doubles as a
-   * quick bulk refresh + add-new. New characters are unchecked by default to
-   * keep the import deliberate.
-   *
-   * Emits no Svelte events — reacts via the `onClose` and `onImported` props
-   * plus `notifyRosterChanged()` so other surfaces (Weekly, switcher) refresh.
-   */
+  type SortField = 'ilvl' | 'combatPower' | 'name';
+  type SortDirection = 'asc' | 'desc';
+  type Step = 'seed' | 'preview';
 
   type PreviewCharacter = {
     name: string;
@@ -28,36 +25,21 @@
     combatPower: number | null;
     selected: boolean;
     alreadyInRoster: boolean;
-    /** True when the existing roster entry already matches the Bible payload
-     * (same class, ilvl and combat power) — nothing would change if imported,
-     * so the row locks as a checked/disabled confirmation instead of tempting
-     * the user to uncheck it. */
+    /** True when the existing roster entry already matches the Bible payload,
+     * so the row locks as a checked confirmation instead of tempting the user
+     * to uncheck it. */
     upToDate: boolean;
   };
-
-  type Step = 'seed' | 'preview';
 
   export let open = false;
   export let rosterId: string;
   export let roster: Record<string, unknown> = {};
   export let order: string[] = [];
   export let onClose: () => void;
-  /** Fired after a successful merge with counts (`imported`, `updated`). */
   export let onImported: ((summary: { imported: number; updated: number }) => void) | undefined = undefined;
 
   const api: AppApi = window.api;
   const ui = new UIHelper();
-
-  const FALLBACK_CLASS = 'Berserker';
-  const FALLBACK_ILVL = 1500;
-  const VALID_CLASSES = new Set([
-    'Slayer', 'Valkyrie', 'Berserker', 'Destroyer', 'Gunlancer', 'Paladin', 'Guardian Knight',
-    'Glaivier', 'Scrapper', 'Soulfist', 'Wardancer', 'Breaker', 'Striker',
-    'Gunslinger', 'Artillerist', 'Deadeye', 'Machinist', 'Sharpshooter',
-    'Arcanist', 'Bard', 'Sorceress', 'Summoner',
-    'Deathblade', 'Reaper', 'Shadowhunter', 'Souleater',
-    'Aeromancer', 'Artist', 'Wildsoul',
-  ]);
 
   let step: Step = 'seed';
   let seedInput = '';
@@ -65,48 +47,44 @@
   let loading = false;
   let submitting = false;
   let preview: PreviewCharacter[] = [];
-  let sortField: 'ilvl' | 'combatPower' | 'name' = 'ilvl';
-  let sortDirection: 'asc' | 'desc' = 'desc';
+  let sortField: SortField = 'ilvl';
+  let sortDirection: SortDirection = 'desc';
 
-  let lastOpen = false;
-
-  $: void syncOpen(open);
-  function syncOpen(next: boolean) {
-    if (next === lastOpen) return;
-    lastOpen = next;
-    if (next) {
-      step = 'seed';
-      // Open with an empty input so the user types a fresh seed character
-      // each time — pre-filling tended to make repeat imports accidentally
-      // search the same roster they were just looking at.
-      seedInput = '';
-      preview = [];
-    }
+  // Reset step/input whenever the modal opens so each invocation starts
+  // fresh; Svelte only re-fires this block when `open` changes value.
+  $: if (open) resetForOpen();
+  function resetForOpen() {
+    step = 'seed';
+    seedInput = '';
+    preview = [];
   }
 
-  $: selectedCount = preview.filter((entry) => entry.selected).length;
-  $: newSelectedCount = preview.filter((entry) => entry.selected && !entry.alreadyInRoster).length;
-  // Only rows that will actually change count towards the "Update N" tally —
-  // up-to-date rows are display-only confirmations.
-  $: updateSelectedCount = preview.filter((entry) => entry.selected && entry.alreadyInRoster && !entry.upToDate).length;
-  $: actionableSelectedCount = newSelectedCount + updateSelectedCount;
-  $: importButtonLabel = buildImportLabel(newSelectedCount, updateSelectedCount);
+  // Single pass over preview to compute the action tallies used by the
+  // footer label and the submit button's disabled state.
+  $: selectionCounts = preview.reduce(
+    (acc, entry) => {
+      if (!entry.selected) return acc;
+      if (!entry.alreadyInRoster) acc.newCount += 1;
+      else if (!entry.upToDate) acc.updateCount += 1;
+      return acc;
+    },
+    { newCount: 0, updateCount: 0 },
+  );
+  $: actionableSelectedCount = selectionCounts.newCount + selectionCounts.updateCount;
+  $: importButtonLabel = buildImportLabel(selectionCounts.newCount, selectionCounts.updateCount);
   $: sortedPreview = sortPreview(preview, sortField, sortDirection);
 
   function buildImportLabel(newCount: number, updateCount: number) {
     const parts: string[] = [];
     if (newCount > 0) parts.push(`Import ${newCount} new`);
     if (updateCount > 0) parts.push(`Update ${updateCount}`);
-    if (parts.length === 0) return 'Import';
-    return parts.join(' + ');
+    return parts.length > 0 ? parts.join(' + ') : 'Import';
   }
 
-  function sortPreview(items: PreviewCharacter[], field: typeof sortField, direction: typeof sortDirection) {
+  function sortPreview(items: PreviewCharacter[], field: SortField, direction: SortDirection) {
     const sign = direction === 'desc' ? -1 : 1;
     return [...items].sort((a, b) => {
-      if (field === 'name') {
-        return a.name.localeCompare(b.name) * sign;
-      }
+      if (field === 'name') return a.name.localeCompare(b.name) * sign;
       const left = Number(a[field] || 0);
       const right = Number(b[field] || 0);
       if (left === right) return a.name.localeCompare(b.name);
@@ -114,7 +92,7 @@
     });
   }
 
-  function toggleSort(field: typeof sortField) {
+  function toggleSort(field: SortField) {
     if (sortField === field) {
       sortDirection = sortDirection === 'desc' ? 'asc' : 'desc';
       return;
@@ -125,28 +103,6 @@
 
   function showToast(message: string, type: string = TOAST_TYPES.INFO) {
     ui.showToast(message, type);
-  }
-
-  function normalizeClass(value: string | null | undefined) {
-    const safe = String(value || '').trim();
-    if (VALID_CLASSES.has(safe)) return safe;
-    const mapped = mapApiClassToDisplay(safe);
-    return VALID_CLASSES.has(mapped) ? mapped : FALLBACK_CLASS;
-  }
-
-  function normalizeIlvl(value: unknown) {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : FALLBACK_ILVL;
-  }
-
-  function normalizeCombatPower(value: unknown) {
-    if (value && typeof value === 'object') {
-      const record = value as Record<string, unknown>;
-      const candidate = Number(record.score ?? record.value ?? 0);
-      return Number.isFinite(candidate) && candidate > 0 ? candidate : null;
-    }
-    const parsed = Number(value ?? 0);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
   }
 
   async function search() {
@@ -182,9 +138,9 @@
           const name = String(rawRow?.name || '').trim();
           const existing = name ? roster[name] : undefined;
           const alreadyInRoster = Boolean(existing);
-          const normalizedClass = normalizeClass(String(rawRow?.class || ''));
-          const normalizedIlvl = normalizeIlvl(rawRow?.ilvl);
-          const normalizedCp = normalizeCombatPower(
+          const normalizedClass = normalizeBibleClass(mapApiClassToDisplay(String(rawRow?.class ?? '')));
+          const normalizedIlvl = normalizeBibleIlvl(rawRow?.ilvl);
+          const normalizedCp = normalizeBibleCombatPower(
             rawRow?.combatPower ?? (rawRow as { combat_power?: unknown })?.combat_power,
           );
 
@@ -205,9 +161,6 @@
             class: normalizedClass,
             ilvl: normalizedIlvl,
             combatPower: normalizedCp,
-            // Up-to-date rows stay checked and locked (no action needed).
-            // Other existing rows are pre-checked so the modal doubles as a
-            // bulk refresh; new rows require an explicit opt-in.
             selected: alreadyInRoster,
             alreadyInRoster,
             upToDate,
@@ -249,9 +202,9 @@
     preview = preview.map((entry) => (entry.alreadyInRoster ? entry : { ...entry, selected: true }));
   }
 
+  // Up-to-date rows stay checked — they are locked confirmations, not
+  // actionable toggles.
   function deselectAll() {
-    // Up-to-date rows stay checked — they are locked confirmations, not
-    // actionable items, so "Deselect all" leaves them as-is.
     preview = preview.map((entry) => (entry.upToDate ? entry : { ...entry, selected: false }));
   }
 
@@ -273,8 +226,6 @@
       const nextOrder: string[] = [...order];
 
       for (const entry of selected) {
-        // Up-to-date rows are display-only confirmations — they count in the
-        // selected total but produce no write and no summary count.
         if (entry.upToDate) continue;
         const existing = nextRoster[entry.name] as Record<string, unknown> | undefined;
         if (existing) {
@@ -479,12 +430,9 @@
 {/if}
 
 <style>
-  /* The bulk import modal intentionally reuses the visual language of the
-     Tracker Integration wizard (`Import from Bible API` / Select Characters)
-     so the two flows feel like the same feature in two places. The rules
-     below mirror the wizard classes but are rescoped to this panel because
-     the wizard sheet targets `.wizard-modal` and that ancestor isn't present
-     here. */
+  /* Mirrors the `.wizard-modal` rules scoped to this panel so the modal
+     matches the Tracker Integration wizard without depending on that
+     ancestor class. */
   .bulk-import-panel {
     width: min(820px, calc(100vw - 24px));
     padding: var(--spacing-lg);
@@ -603,8 +551,6 @@
     cursor: pointer;
   }
 
-  /* Primary/secondary buttons mirror the wizard's treatment (yellow primary
-     CTA on the right, neutral secondary on the left). */
   .bulk-import-panel :global(.wizard-primary-btn) {
     background: var(--color-primary);
     color: var(--color-bg-dark);
@@ -651,14 +597,8 @@
     margin-top: var(--spacing-md);
   }
 
-  /* The preview step reuses the wizard's global `.wizard-character-list-*`
-     classes unchanged so the two flows look identical. A couple of
-     locally-scoped overrides below ensure the list fills the modal width
-     (the wizard caps it at 620px) and layers on the up-to-date disabled
-     state particular to this bulk flow. */
-  /* Override the global .wizard-preview-actions which caps width at 620px
-     and auto-margins the row (which, inside our wider 820px panel, reads
-     as indented and misaligned with the character list below). */
+  /* Override the global wizard-preview-actions which caps width at 620px
+     and auto-margins the row; inside our 820px panel that reads as indented. */
   .bulk-import-panel :global(.wizard-preview-actions) {
     display: flex;
     gap: var(--spacing-sm);

@@ -96,10 +96,6 @@
     await loadRosterData();
     document.addEventListener('click', handleDocumentClick);
 
-    relativeTimeInterval = setInterval(() => {
-      relativeTimeTick = Date.now();
-    }, RELATIVE_TIME_TICK_MS);
-
     let isInitialRosterSync = true;
     unsubscribeRosterChanges = rosterChangeVersion.subscribe(() => {
       if (isInitialRosterSync) {
@@ -109,6 +105,20 @@
       handleRosterChanged();
     });
   });
+
+  // Only tick the relative-time clock while a refresh timestamp exists —
+  // avoids 30s wake-ups on empty rosters with nothing to label.
+  $: syncRelativeTimeInterval(lastRefreshAt);
+  function syncRelativeTimeInterval(current: number | null) {
+    if (current && !relativeTimeInterval) {
+      relativeTimeInterval = setInterval(() => {
+        relativeTimeTick = Date.now();
+      }, RELATIVE_TIME_TICK_MS);
+    } else if (!current && relativeTimeInterval) {
+      clearInterval(relativeTimeInterval);
+      relativeTimeInterval = null;
+    }
+  }
 
   onDestroy(() => {
     document.removeEventListener('click', handleDocumentClick);
@@ -159,45 +169,48 @@
     loading = true;
     try {
       const seedRosterId = forceResolveActiveRoster ? '' : activeRosterId;
-      const state = await withAsyncError(
-        () => loadRosterState(api, seedRosterId),
-        {
-        code: ERROR_CODES.STATE.LOAD_FAILED,
-        severity: 'error',
-        context: {
-          phase: 'loadRosterData',
-          action: 'load-roster-data',
-          rosterId: activeRosterId,
-          forceResolveActiveRoster,
-        },
-        showToast: true,
-        }
-      );
+      // Fetch roster state and the meta list in parallel — they are
+      // independent reads, and the meta list is only used to resolve the
+      // active roster's display name.
+      const [state, metas] = await Promise.all([
+        withAsyncError(
+          () => loadRosterState(api, seedRosterId),
+          {
+            code: ERROR_CODES.STATE.LOAD_FAILED,
+            severity: 'error',
+            context: {
+              phase: 'loadRosterData',
+              action: 'load-roster-data',
+              rosterId: activeRosterId,
+              forceResolveActiveRoster,
+            },
+            showToast: true,
+          },
+        ),
+        api.getRosterList ? api.getRosterList().catch(() => null) : Promise.resolve(null),
+      ]);
 
       if (state) {
         activeRosterId = state.activeRosterId;
         roster = state.roster;
         order = state.order;
         lastRefreshAt = readLastRefreshAt(activeRosterId);
-        await refreshActiveRosterName();
+        applyActiveRosterName(metas, state.activeRosterId);
       }
     } finally {
       loading = false;
     }
   }
 
-  async function refreshActiveRosterName() {
-    if (!activeRosterId || !api.getRosterList) {
+  function applyActiveRosterName(metas: unknown, rosterIdHint: string) {
+    if (!rosterIdHint || !Array.isArray(metas)) {
       activeRosterName = '';
       return;
     }
-    try {
-      const metas = await api.getRosterList();
-      const match = Array.isArray(metas) ? metas.find((entry) => entry?.id === activeRosterId) : null;
-      activeRosterName = match?.name?.trim() || '';
-    } catch {
-      activeRosterName = '';
-    }
+    const match = metas.find((entry) => (entry as { id?: string })?.id === rosterIdHint) as
+      | { name?: string }
+      | undefined;
+    activeRosterName = match?.name?.trim() || '';
   }
 
   function readLastRefreshAt(rosterKey: string): number | null {
