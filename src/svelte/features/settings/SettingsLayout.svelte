@@ -13,7 +13,6 @@
     { id: 'general', label: 'General' },
     { id: 'rosters', label: 'Rosters' },
     { id: 'tracker', label: 'Tracker Integration' },
-    { id: 'about', label: 'About' },
   ];
 </script>
 
