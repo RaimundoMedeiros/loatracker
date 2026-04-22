@@ -1392,3 +1392,9 @@
    justify-content: stretch;
 }
 
+/* Reserve space for the absolute close-btn on the top-right so the primary
+   Refresh button doesn't end up tucked behind the × glyph. */
+.roster-manage-modal #roster-tab .roster-header {
+   padding-right: 52px;
+}
+

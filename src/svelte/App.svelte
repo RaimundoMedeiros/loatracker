@@ -570,7 +570,12 @@
 
       const shouldOpenWizard = await shouldOpenSetupAssistant(activeRosterId);
       lastSetupCheckedRosterId = activeRosterId;
-      if (shouldOpenWizard && !(currentRoute === 'settings' && settingsSection === 'tracker')) {
+      // Only redirect first-time users when they are NOT already in Settings.
+      // Any Settings subsection (Rosters/Tracker/Database) is a valid place to
+      // onboard from — forcing a jump to settings/tracker on top of an
+      // intentional navigation (e.g. user opened Roster Management) feels like
+      // a bug.
+      if (shouldOpenWizard && currentRoute !== 'settings') {
         window.location.hash = 'settings/tracker';
       }
     } catch (error) {
