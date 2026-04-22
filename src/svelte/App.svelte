@@ -18,7 +18,7 @@
   const ROUTES = ['weekly', 'friends', 'custom', 'settings', 'howto'];
   const MAIN_ROUTES = ['weekly', 'friends', 'custom', 'settings'] as const;
   const MODAL_ROUTES = ['howto'] as const;
-  const SETTINGS_SECTIONS = ['general', 'rosters', 'tracker', 'about'] as const;
+  const SETTINGS_SECTIONS = ['general', 'rosters', 'tracker', 'database', 'about'] as const;
   type AppRoute = (typeof ROUTES)[number];
   type ModalRoute = (typeof MODAL_ROUTES)[number];
   type MainRoute = (typeof MAIN_ROUTES)[number];

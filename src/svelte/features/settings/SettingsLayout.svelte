@@ -2,9 +2,10 @@
   import SettingsGeneralSection from './SettingsGeneralSection.svelte';
   import SettingsRostersSection from './SettingsRostersSection.svelte';
   import SettingsTrackerSection from './SettingsTrackerSection.svelte';
+  import SettingsDatabaseSection from './SettingsDatabaseSection.svelte';
   import SettingsAboutSection from './SettingsAboutSection.svelte';
 
-  type SettingsSection = 'general' | 'rosters' | 'tracker' | 'about';
+  type SettingsSection = 'general' | 'rosters' | 'tracker' | 'database' | 'about';
 
   export let section: SettingsSection = 'general';
   export let onSelectSection: (next: SettingsSection) => void = () => undefined;
@@ -13,6 +14,7 @@
     { id: 'general', label: 'General' },
     { id: 'rosters', label: 'Rosters' },
     { id: 'tracker', label: 'Tracker Integration' },
+    { id: 'database', label: 'Database Import' },
   ];
 </script>
 
@@ -43,6 +45,8 @@
       <SettingsRostersSection />
     {:else if section === 'tracker'}
       <SettingsTrackerSection />
+    {:else if section === 'database'}
+      <SettingsDatabaseSection />
     {:else if section === 'about'}
       <SettingsAboutSection />
     {/if}
