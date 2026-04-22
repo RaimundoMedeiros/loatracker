@@ -57,10 +57,39 @@
     return parseHash(input).route;
   }
 
+  /**
+   * Back-compat redirect for bookmarks pointing at the removed top-level
+   * `#roster` route. Collapses `#roster`, `#roster/`, and any sub-paths to
+   * the new Rosters settings section. Returns true when a redirect was issued
+   * so callers can short-circuit further processing.
+   */
+  function redirectLegacyRosterHash(): boolean {
+    const value = window.location.hash.replace(/^#\/?/, '').trim().toLowerCase();
+    const head = value.split('/')[0];
+    if (head === 'roster') {
+      window.location.hash = 'settings/rosters';
+      return true;
+    }
+    return false;
+  }
+
+  redirectLegacyRosterHash();
   const initialParsed = parseHash(window.location.hash);
   let currentRoute: AppRoute = initialParsed.route;
   let settingsSection: SettingsSection = initialParsed.section;
-  let previousMainRoute: MainRoute = currentRoute === 'friends' ? 'friends' : 'weekly';
+  // Seed the background-route memory from the initial hash so that opening a
+  // modal (e.g. #howto) immediately reflects the section the user loaded on,
+  // not a hardcoded default.
+  let previousMainRoute: MainRoute = isModalRoute(initialParsed.route)
+    ? 'weekly'
+    : asMainRoute(initialParsed.route);
+  // Full raw hash of the last non-modal route (including any settings
+  // subsection). Used to restore the exact location the user was on before
+  // opening a modal like #howto, e.g. #settings/tracker → #howto → close
+  // should land back on #settings/tracker rather than collapsing to #settings.
+  let previousNonModalHash: string = isModalRoute(initialParsed.route)
+    ? 'weekly'
+    : window.location.hash.replace(/^#\/?/, '') || 'weekly';
   let modalFocusObserver: MutationObserver | null = null;
   let modalFocusRaf = 0;
   let lastTrackedModal: HTMLElement | null = null;
@@ -108,9 +137,15 @@
   $: activeMainRoute = isModalRoute(currentRoute) ? previousMainRoute : asMainRoute(currentRoute);
 
   function onHashChange() {
+    if (redirectLegacyRosterHash()) {
+      // The redirect triggers another hashchange that will run this handler
+      // again with the rewritten value; skip processing the legacy hash.
+      return;
+    }
     const parsed = parseHash(window.location.hash);
     if (!isModalRoute(parsed.route)) {
       previousMainRoute = asMainRoute(parsed.route);
+      previousNonModalHash = window.location.hash.replace(/^#\/?/, '') || 'weekly';
     }
     if (parsed.route === 'settings') {
       highlightSettingsButton = false;
@@ -118,7 +153,11 @@
     if (parsed.route !== currentRoute) {
       currentRoute = parsed.route;
     }
-    if (parsed.section !== settingsSection) {
+    // Only sync settingsSection when we're actually on a settings route. When
+    // a modal like #howto is opened on top of #settings/tracker, parseHash
+    // returns section: 'general' (the fallback), which would otherwise flip
+    // the underlying settings page behind the modal.
+    if (parsed.route === 'settings' && parsed.section !== settingsSection) {
       settingsSection = parsed.section;
     }
   }
@@ -128,6 +167,7 @@
     const parsed = parseHash('#' + raw);
     if (!isModalRoute(parsed.route)) {
       previousMainRoute = asMainRoute(parsed.route);
+      previousNonModalHash = raw;
     }
     if (parsed.route === 'settings') {
       highlightSettingsButton = false;
@@ -140,7 +180,7 @@
   }
 
   function closeModal() {
-    window.location.hash = previousMainRoute;
+    window.location.hash = previousNonModalHash || previousMainRoute;
   }
 
   function onWindowKeyDown(event: KeyboardEvent) {

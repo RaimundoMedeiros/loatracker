@@ -137,15 +137,16 @@
 
   /**
    * After a successful Bible import we send the user to the roster view so they
-   * can review the newly-imported characters. Falls back to the legacy hash
-   * route when no navigation handler is supplied (standalone wizard modal).
+   * can review the newly-imported characters. Falls back to the Rosters
+   * settings section when no navigation handler is supplied (standalone wizard
+   * modal context).
    */
   function navigateToRosterAfterImport() {
     if (onNavigateToRoster) {
       onNavigateToRoster();
       return;
     }
-    window.location.hash = 'roster';
+    window.location.hash = 'settings/rosters';
   }
 
   function normalizeClass(value: string | null | undefined) {
