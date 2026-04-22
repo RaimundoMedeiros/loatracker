@@ -52,11 +52,11 @@
     margin: 0 auto;
 }
 
-/* Main content fills viewport width; tab content centers within */
+/* Main content hugs widest tab and centers in viewport; header inherits same envelope */
 #main-content {
-    width: 100%;
+    width: max-content;
     max-width: 100%;
-    margin: 0;
+    margin: 0 auto;
     overflow-x: auto;
     overflow-y: visible;
     padding-bottom: calc(var(--spacing-xl) + 64px);
