@@ -643,7 +643,7 @@
     opacity: 0.6;
 }
 
-#roster-tab .roster-form-overlay {
+.roster-form-overlay {
     position: fixed;
     inset: 0;
     z-index: 240;
@@ -653,7 +653,7 @@
     backdrop-filter: blur(2px);
 }
 
-#roster-tab .roster-form-panel {
+.roster-form-overlay .roster-form-panel {
     width: min(620px, calc(100vw - 24px));
     max-height: calc(100vh - 36px);
     overflow: auto;
@@ -664,18 +664,18 @@
     padding: var(--spacing-sm);
 }
 
-#roster-tab .roster-form-header {
+.roster-form-overlay .roster-form-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin-bottom: var(--spacing-xs);
 }
 
-#roster-tab .roster-form-header h3 {
+.roster-form-overlay .roster-form-header h3 {
     margin: 0;
 }
 
-#roster-tab .roster-form-close {
+.roster-form-overlay .roster-form-close {
     width: 30px;
     height: 30px;
     border-radius: var(--radius-md);
@@ -686,7 +686,7 @@
     font-size: 1rem;
 }
 
-#roster-tab .add-character {
+.roster-form-overlay .add-character {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: center;
@@ -697,21 +697,21 @@
     max-width: none;
 }
 
-#roster-tab .add-character input,
-#roster-tab .add-character select,
-#roster-tab .add-character button {
+.roster-form-overlay .add-character input,
+.roster-form-overlay .add-character select,
+.roster-form-overlay .add-character button {
     width: 100%;
     min-height: 31px;
 }
 
-#roster-tab .add-character input,
-#roster-tab .add-character select {
+.roster-form-overlay .add-character input,
+.roster-form-overlay .add-character select {
     background-color: color-mix(in srgb, var(--color-bg-dark) 74%, var(--color-surface));
     min-width: 0;
     transition: border-color var(--transition-fast), background-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
 }
 
-#roster-tab .add-character button {
+.roster-form-overlay .add-character button {
     border: 1px solid color-mix(in srgb, var(--color-primary) 36%, var(--color-border));
     white-space: nowrap;
     box-shadow: var(--shadow-sm);
@@ -719,25 +719,25 @@
     font-size: var(--font-xs);
 }
 
-#roster-tab .add-character #add-char {
+.roster-form-overlay .add-character #add-char {
     min-width: 112px;
 }
 
-#roster-tab .add-character #char-name,
-#roster-tab .add-character #char-class,
-#roster-tab .add-character #char-ilvl,
-#roster-tab .add-character #char-cp {
+.roster-form-overlay .add-character #char-name,
+.roster-form-overlay .add-character #char-class,
+.roster-form-overlay .add-character #char-ilvl,
+.roster-form-overlay .add-character #char-cp {
     max-width: 100%;
 }
 
-#roster-tab .add-character input:hover,
-#roster-tab .add-character select:hover {
+.roster-form-overlay .add-character input:hover,
+.roster-form-overlay .add-character select:hover {
     border-color: color-mix(in srgb, var(--color-primary) 34%, var(--color-border));
 }
 
-#roster-tab .add-character input:focus-visible,
-#roster-tab .add-character select:focus-visible,
-#roster-tab .add-character button:focus-visible,
+.roster-form-overlay .add-character input:focus-visible,
+.roster-form-overlay .add-character select:focus-visible,
+.roster-form-overlay .add-character button:focus-visible,
 #roster-tab #sort-roster-btn:focus-visible,
 #roster-tab #refresh-roster-btn:focus-visible,
 #roster-tab #open-add-char-btn:focus-visible,
@@ -749,13 +749,13 @@
     box-shadow: var(--roster-focus-ring);
 }
 
-#roster-tab .add-character button[type='button']:not(#add-char) {
+.roster-form-overlay .add-character button[type='button']:not(#add-char) {
     background: var(--color-surface);
     color: var(--color-text-secondary);
     border-color: var(--color-border);
 }
 
-#roster-tab .add-character button[type='button']:not(#add-char):hover {
+.roster-form-overlay .add-character button[type='button']:not(#add-char):hover {
     background: var(--color-surface-hover);
     color: var(--color-text);
 }
@@ -808,7 +808,7 @@
     grid-column: 3;
 }
 
-#roster-tab .add-character-source-group {
+.roster-form-overlay .add-character-source-group {
     grid-column: 2;
     justify-self: center;
     display: grid;
@@ -823,7 +823,7 @@
     box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-primary-light) 10%, transparent);
 }
 
-#roster-tab .add-character-source-title {
+.roster-form-overlay .add-character-source-title {
     font-size: var(--font-xs);
     color: var(--color-text-secondary);
     font-weight: 600;
@@ -834,14 +834,14 @@
     gap: 6px;
 }
 
-#roster-tab .add-character-source-title::before,
-#roster-tab .add-character-source-title::after {
+.roster-form-overlay .add-character-source-title::before,
+.roster-form-overlay .add-character-source-title::after {
     content: '—';
     color: color-mix(in srgb, var(--color-primary) 46%, var(--color-border));
     font-weight: 700;
 }
 
-#roster-tab .add-character-source-actions {
+.roster-form-overlay .add-character-source-actions {
     display: grid;
     grid-template-columns: 1fr 1fr;
     align-items: center;
@@ -849,8 +849,8 @@
     min-width: 216px;
 }
 
-#roster-tab .add-character-source-actions #open-add-char-btn,
-#roster-tab .add-character-source-actions #import-mathi-btn {
+.roster-form-overlay .add-character-source-actions #open-add-char-btn,
+.roster-form-overlay .add-character-source-actions #import-mathi-btn {
     min-width: 108px;
     width: 100%;
     justify-content: center;
@@ -1059,9 +1059,9 @@
     #roster-tab .character-card,
     #roster-tab .character-class-icon,
     #roster-tab .sort-dropdown,
-    #roster-tab .add-character input,
-    #roster-tab .add-character select,
-    #roster-tab .add-character button,
+    .roster-form-overlay .add-character input,
+    .roster-form-overlay .add-character select,
+    .roster-form-overlay .add-character button,
     #roster-tab #sort-roster-btn,
     #roster-tab #refresh-roster-btn,
     #roster-tab .roster-summary-chip,
@@ -1090,7 +1090,7 @@
         justify-items: stretch;
     }
 
-    #roster-tab .add-character-source-group {
+    .roster-form-overlay .add-character-source-group {
         grid-column: 1;
         justify-self: stretch;
         flex-direction: column;
@@ -1100,19 +1100,19 @@
         padding: 6px;
     }
 
-    #roster-tab .add-character-source-title {
+    .roster-form-overlay .add-character-source-title {
         text-align: center;
         justify-content: center;
     }
 
-    #roster-tab .add-character-source-actions {
+    .roster-form-overlay .add-character-source-actions {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: var(--spacing-xs);
         min-width: 0;
     }
 
-    #roster-tab .add-character button {
+    .roster-form-overlay .add-character button {
         width: 100%;
     }
 
@@ -1133,7 +1133,7 @@
 }
 
 @media (max-width: 640px) {
-    #roster-tab .add-character {
+    .roster-form-overlay .add-character {
         grid-template-columns: minmax(0, 1fr);
     }
 

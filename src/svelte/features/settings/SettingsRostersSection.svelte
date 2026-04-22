@@ -2,7 +2,12 @@
   import { onMount, onDestroy } from 'svelte';
   import { RosterService } from '../../services/RosterService';
   import type { RosterMeta } from '../../../types/app-api';
-  import { notifyRosterChanged, notifyVisibleRostersChanged, rosterChangeVersion } from '../../stores/rosterSync';
+  import {
+    consumePendingManageRoster,
+    notifyRosterChanged,
+    notifyVisibleRostersChanged,
+    rosterChangeVersion,
+  } from '../../stores/rosterSync';
   import RosterPage from '../roster/RosterPage.svelte';
   import SettingsHeader from './SettingsHeader.svelte';
   import { UIHelper } from '../../utils/uiHelper';
@@ -77,6 +82,14 @@
       }
       void refresh();
     });
+
+    // Honor a pending request to auto-open Manage (e.g. after "Add Manually"
+    // from Tracker Integration). Consuming clears the store so this only fires
+    // on the originating navigation.
+    const pendingRosterId = consumePendingManageRoster();
+    if (pendingRosterId) {
+      await openManage(pendingRosterId);
+    }
   });
 
   onDestroy(() => {
