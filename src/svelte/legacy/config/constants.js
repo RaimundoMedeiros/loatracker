@@ -158,7 +158,7 @@ export const DAILY_RESET = {
     HOUR_UTC: 10    // 10:00 AM UTC
 };
 
-export const GUARDIAN_BOSSES = ['Argeos', 'Skolakia', 'Drextalas', 'Krathios'];
+export const GUARDIAN_BOSSES = ['Argeos', 'Skolakia', 'Drextalas', 'Krathios', "Krathios's Tail", 'Gargadeth', 'Lumencaligo'];
 export const FIELD_BOSS_NAME = 'Sevek Atun';
 export const CHAOS_GATE_NAMES = ['Soft Bean Legion Honey-Filled Tricolor Sweetcake', 'Darkness Legion Kiril'];
 
