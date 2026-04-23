@@ -8,6 +8,8 @@
 
 A web app for tracking Lost Ark weekly raid progression across multiple character rosters.
 
+https://loatracker.pages.dev/
+
 Lost Ark players managing several characters need to track which raids have been cleared, at what difficulty, and whether chests were opened — every week. WeeklyTracker LA provides a roster-centric workflow for exactly that: create rosters, add characters with their item level and class, then track weekly raids per character with a single click.
 
 The app is a fully client-side Progressive Web App. All data stays in the browser — no account required, no server needed for core functionality. Install it as a PWA and it works offline.
