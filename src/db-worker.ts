@@ -38,7 +38,7 @@ const TRACKED_WEEKLY_BOSSES = [
   'Corvus Tul Rak',
 ];
 
-const GUARDIAN_BOSSES = ['Argeos', 'Skolakia', 'Drextalas', 'Krathios', "Krathios's Tail"];
+const GUARDIAN_BOSSES = ['Argeos', 'Skolakia', 'Drextalas', 'Krathios', "Krathios's Tail", 'Gargadeth', 'Lumencaligo'];
 const FIELD_BOSS_NAMES = ['Sevek Atun', 'Field Boss: Sevek Atun'];
 const CHAOS_GATE_NAMES = [
   'Soft Bean Legion Honey-Filled Tricolor Sweetcake',
