@@ -378,19 +378,24 @@
 }
 
 .weekly-actions .header-icon-btn.weekly-refresh-btn:hover:not(:disabled) {
-   background-color: color-mix(in srgb, var(--color-info, #2196f3) 10%, var(--color-surface-hover));
-   border-color: color-mix(in srgb, var(--color-info, #2196f3) 34%, var(--color-border-light));
+   background-color: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface-hover));
+   border-color: color-mix(in srgb, var(--color-primary) 28%, var(--color-border-light));
    color: var(--color-text);
 }
 
 .weekly-actions .header-icon-btn.weekly-refresh-btn .weekly-refresh-icon {
-   color: color-mix(in srgb, var(--color-info, #2196f3) 72%, var(--color-text));
+   color: color-mix(in srgb, var(--color-primary) 58%, var(--color-text));
    display: block;
 }
 
+.weekly-actions .header-icon-btn.weekly-refresh-btn:active:not(:disabled) {
+   background-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-surface));
+   border-color: color-mix(in srgb, var(--color-primary) 36%, var(--color-border));
+}
+
 .weekly-actions .header-icon-btn.weekly-refresh-btn.is-refreshing {
-   background-color: color-mix(in srgb, var(--color-info, #2196f3) 20%, var(--color-surface));
-   border-color: color-mix(in srgb, var(--color-info, #2196f3) 40%, var(--color-border));
+   background-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-surface));
+   border-color: color-mix(in srgb, var(--color-primary) 36%, var(--color-border));
    color: var(--color-text);
    cursor: progress;
 }
@@ -400,9 +405,9 @@
 }
 
 .weekly-actions .header-icon-btn.weekly-refresh-btn.cooldown-active {
-   background-color: color-mix(in srgb, var(--color-surface) 86%, var(--color-bg-dark));
+   background-color: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface));
    color: var(--color-text-secondary);
-   border-color: color-mix(in srgb, var(--color-border-light) 56%, var(--color-border));
+   border-color: color-mix(in srgb, var(--color-primary) 26%, var(--color-border));
 }
 
 .weekly-actions .header-icon-btn.weekly-refresh-btn:disabled {
