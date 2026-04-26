@@ -8,6 +8,7 @@ export type SettingsPayload = {
   timeFormat: string;
   autoRaidUpdateMinutes: number;
   autoRaidUpdateOnFocus: boolean;
+  preserveChestStateOnWeeklyReset: boolean;
   closeToTray: boolean;
   closeToTrayPrompted: boolean;
   hiddenColumns: string[];

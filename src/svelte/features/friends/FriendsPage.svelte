@@ -1291,7 +1291,7 @@
 
     cancelEditingFriendAlias();
     recomputeUiModels();
-    showToast(nextAlias ? 'Alias updated.' : 'Alias cleared.', TOAST_TYPES.SUCCESS);
+    showToast(nextAlias ? 'Nickname updated.' : 'Nickname cleared.', TOAST_TYPES.SUCCESS);
   }
 
   async function refreshFriends(showToastFeedback: boolean) {

@@ -1528,6 +1528,14 @@
     return `${dateText}${bossText}`;
   }
 
+  function shouldPreserveChestStateOnWeeklyReset() {
+    const rawValue = (settings as Record<string, unknown> | null)?.preserveChestStateOnWeeklyReset;
+    if (rawValue === true || rawValue === 'true' || rawValue === 1) {
+      return true;
+    }
+    return false;
+  }
+
   function preserveHiddenStates(source: CharacterDataMap) {
     const hiddenStates: Record<string, Record<string, true>> = {};
 
@@ -1560,6 +1568,53 @@
         target[characterName][boss] = {
           ...current,
           hidden: true,
+        };
+      });
+    });
+  }
+
+  function preserveChestOpenStates(source: CharacterDataMap) {
+    const chestStates: Record<string, Record<string, number>> = {};
+
+    Object.keys(source || {}).forEach((characterName) => {
+      const entry = source[characterName];
+      if (!entry || typeof entry !== 'object') return;
+      Object.keys(entry).forEach((boss) => {
+        if (boss === '_extraGold') return;
+        const cell = (entry as Record<string, unknown>)[boss];
+        if (!cell || typeof cell !== 'object') return;
+
+        const rawOpenCount = Number((cell as { chestOpenCount?: unknown }).chestOpenCount);
+        const fallbackOpenCount = (cell as RaidCell).chestOpened ? 1 : 0;
+        const parsedOpenCount = Number.isFinite(rawOpenCount) ? Math.floor(rawOpenCount) : fallbackOpenCount;
+        const chestOpenCount = Math.max(0, Math.min(getMaxChestOpenCountForBoss(boss), parsedOpenCount));
+        if (chestOpenCount <= 0) return;
+
+        if (!chestStates[characterName]) {
+          chestStates[characterName] = {};
+        }
+        chestStates[characterName][boss] = chestOpenCount;
+      });
+    });
+
+    return chestStates;
+  }
+
+  function restoreChestOpenStates(target: CharacterDataMap, chestStates: Record<string, Record<string, number>>) {
+    Object.keys(chestStates || {}).forEach((characterName) => {
+      if (!target[characterName]) {
+        target[characterName] = {} as CharacterBossData;
+      }
+
+      Object.keys(chestStates[characterName] || {}).forEach((boss) => {
+        const current = getRaidCell(target, characterName, boss);
+        const maxChestOpenCount = getMaxChestOpenCountForBoss(boss);
+        const chestOpenCount = Math.max(0, Math.min(maxChestOpenCount, Math.floor(Number(chestStates[characterName][boss] || 0))));
+
+        target[characterName][boss] = {
+          ...current,
+          chestOpened: chestOpenCount > 0,
+          chestOpenCount,
         };
       });
     });
@@ -2508,9 +2563,14 @@
       ? characterData
       : (((await api.loadCharacterData?.(rosterId)) as CharacterDataMap | null) || {});
 
+    const preserveChestState = shouldPreserveChestStateOnWeeklyReset();
     const hiddenStates = preserveHiddenStates(currentCharacterData || {});
+    const chestStates = preserveChestState ? preserveChestOpenStates(currentCharacterData || {}) : {};
     const next = {} as CharacterDataMap;
     restoreHiddenStates(next, hiddenStates);
+    if (preserveChestState) {
+      restoreChestOpenStates(next, chestStates);
+    }
 
     const rosterPayload = (await api.loadRoster?.(rosterId)) as RosterPayload | null;
     const rosterState = { ...((rosterPayload?.roster || {}) as Record<string, unknown>) };
@@ -2894,38 +2954,52 @@
                 class:is-refreshing={Boolean(refreshingRosterIds[card.rosterId])}
                 class:cooldown-active={(refreshCooldownByRoster[card.rosterId] || 0) > 0 && !refreshingRosterIds[card.rosterId]}
                 title={refreshingRosterIds[card.rosterId]
-                  ? 'Refreshing roster from Bible API…'
+                  ? 'Syncing roster iLvl/CP from Bible API…'
                   : (refreshCooldownByRoster[card.rosterId] || 0) > 0
                     ? `Please wait ${refreshCooldownByRoster[card.rosterId]}s before refreshing again`
-                    : 'Refresh roster from Bible API'}
-                aria-label="Refresh roster from Bible API"
+                    : 'Sync roster iLvl/CP from Bible API'}
+                aria-label="Sync roster iLvl and CP from Bible API"
                 aria-busy={Boolean(refreshingRosterIds[card.rosterId])}
                 on:click={() => handleRefreshWeeklyRoster(card.rosterId)}
                 disabled={loading || Boolean(refreshingRosterIds[card.rosterId]) || (refreshCooldownByRoster[card.rosterId] || 0) > 0}
               >
-                <svg class="weekly-refresh-icon" width="18" height="18" viewBox="-0.45 0 60.369 60.369" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                  <g transform="translate(-446.571 -211.615)">
-                    <path d="M504.547,265.443h-9.019a30.964,30.964,0,0,0-29.042-52.733,1.5,1.5,0,1,0,.792,2.894,27.955,27.955,0,0,1,25.512,48.253l0-10.169h-.011a1.493,1.493,0,0,0-2.985,0h0v13.255a1.5,1.5,0,0,0,1.5,1.5h13.256a1.5,1.5,0,1,0,0-3Z" fill="currentColor"/>
-                    <path d="M485.389,267.995a27.956,27.956,0,0,1-25.561-48.213l0,10.2h.015a1.491,1.491,0,0,0,2.978,0h.007V216.791a1.484,1.484,0,0,0-1.189-1.532l-.018-.005a1.533,1.533,0,0,0-.223-.022c-.024,0-.046-.007-.07-.007H448.071a1.5,1.5,0,0,0,0,3h8.995a30.963,30.963,0,0,0,29.115,52.664,1.5,1.5,0,0,0-.792-2.894Z" fill="currentColor"/>
-                  </g>
+                <svg class="weekly-refresh-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M21 12a9 9 0 1 1-3.3-6.9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M21 3v6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
                 <span class="btn-label">
-                  {#if refreshingRosterIds[card.rosterId]}Refreshing{:else if (refreshCooldownByRoster[card.rosterId] || 0) > 0}Wait {refreshCooldownByRoster[card.rosterId]}s{:else}Refresh{/if}
+                  {#if refreshingRosterIds[card.rosterId]}Syncing{:else if (refreshCooldownByRoster[card.rosterId] || 0) > 0}Wait {refreshCooldownByRoster[card.rosterId]}s{:else}Sync iLvl/CP{/if}
                 </span>
               </button>
               {/if}
-              <button type="button" class="header-icon-btn weekly-action-btn" on:click={() => loadFromDatabase({ rosterId: card.rosterId })} disabled={loading}>
-                <img src="./assets/icons/items/download.svg" alt="" aria-hidden="true" />
-                <span class="btn-label">Load Data</span>
+              <button
+                type="button"
+                class="header-icon-btn weekly-action-btn"
+                title="Load cleared raids from encounters.db for this roster"
+                aria-label="Load cleared raids from encounters database"
+                on:click={() => loadFromDatabase({ rosterId: card.rosterId })}
+                disabled={loading}
+              >
+                <svg class="weekly-load-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M12 4v10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="m8 10 4 4 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M4 20h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <span class="btn-label">Load Raids</span>
               </button>
               <button
                 type="button"
                 class="header-icon-btn weekly-action-btn"
+                title="Reset weekly raid progress for this roster"
+                aria-label="Reset weekly raid progress for this roster"
                 on:click={() => openWeeklyConfirm('reset-weekly', card.rosterId, card.rosterName)}
                 disabled={loading}
               >
-                <img src="./assets/icons/refresh.svg" alt="" aria-hidden="true" />
-                <span class="btn-label">Reset Data</span>
+                <svg class="weekly-reset-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M3 12a9 9 0 1 0 3.3-6.9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M3 3v6h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <span class="btn-label">Reset Raids</span>
               </button>
             </div>
             <div class="weekly-actions-right">

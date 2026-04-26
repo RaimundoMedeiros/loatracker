@@ -367,30 +367,45 @@
    justify-content: center;
 }
 
-/* Yellow primary refresh button, matches the Roster Management refresh CTA
-   so users recognize it across surfaces. The icon rotates while the request
-   is in flight and the button becomes non-interactive during both the
-   loading state and the post-request cooldown. */
+/* Refresh keeps parity with other weekly actions (no primary CTA treatment)
+   and communicates state mostly through icon motion + subtle tone changes. */
 .weekly-actions .header-icon-btn.weekly-refresh-btn {
-   background-color: var(--color-primary);
-   color: var(--color-bg-dark);
-   border-color: var(--color-primary);
-}
-
-.weekly-actions .header-icon-btn.weekly-refresh-btn:hover:not(:disabled) {
-   background-color: var(--color-primary-dark);
-   border-color: var(--color-primary-dark);
-   color: var(--color-bg-dark);
+   min-width: 104px;
+   padding: 6px 10px;
+   background: color-mix(in srgb, var(--color-surface-light) 88%, var(--color-surface));
+   border-color: color-mix(in srgb, var(--color-border-light) 66%, var(--color-border));
+   color: var(--color-text);
 }
 
 .weekly-actions .header-icon-btn.weekly-refresh-btn .weekly-refresh-icon {
-   color: currentColor;
+   color: color-mix(in srgb, var(--color-primary) 58%, var(--color-text));
    display: block;
 }
 
+.weekly-actions .header-icon-btn .weekly-load-icon,
+.weekly-actions .header-icon-btn .weekly-reset-icon,
+.weekly-actions .header-icon-btn .weekly-refresh-icon {
+   width: 16px;
+   height: 16px;
+   flex: 0 0 16px;
+   display: block;
+}
+
+.weekly-actions .header-icon-btn.weekly-refresh-btn:hover:not(:disabled) {
+   background-color: var(--color-surface-hover);
+   border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border-light));
+   transform: translateY(-1px);
+}
+
+.weekly-actions .header-icon-btn.weekly-refresh-btn:active:not(:disabled) {
+   background-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-surface));
+   border-color: color-mix(in srgb, var(--color-primary) 36%, var(--color-border));
+}
+
 .weekly-actions .header-icon-btn.weekly-refresh-btn.is-refreshing {
-   background-color: color-mix(in srgb, var(--color-primary) 55%, var(--color-surface));
-   color: var(--color-bg-dark);
+   background-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-surface));
+   border-color: color-mix(in srgb, var(--color-primary) 36%, var(--color-border));
+   color: var(--color-text);
    cursor: progress;
 }
 
@@ -399,9 +414,9 @@
 }
 
 .weekly-actions .header-icon-btn.weekly-refresh-btn.cooldown-active {
-   background-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-surface));
+   background-color: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface));
    color: var(--color-text-secondary);
-   border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border));
+   border-color: color-mix(in srgb, var(--color-primary) 26%, var(--color-border));
 }
 
 .weekly-actions .header-icon-btn.weekly-refresh-btn:disabled {
