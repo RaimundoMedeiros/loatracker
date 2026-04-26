@@ -377,15 +377,24 @@
    color: var(--color-text);
 }
 
-.weekly-actions .header-icon-btn.weekly-refresh-btn:hover:not(:disabled) {
-   background-color: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface-hover));
-   border-color: color-mix(in srgb, var(--color-primary) 28%, var(--color-border-light));
-   color: var(--color-text);
-}
-
 .weekly-actions .header-icon-btn.weekly-refresh-btn .weekly-refresh-icon {
    color: color-mix(in srgb, var(--color-primary) 58%, var(--color-text));
    display: block;
+}
+
+.weekly-actions .header-icon-btn .weekly-load-icon,
+.weekly-actions .header-icon-btn .weekly-reset-icon,
+.weekly-actions .header-icon-btn .weekly-refresh-icon {
+   width: 16px;
+   height: 16px;
+   flex: 0 0 16px;
+   display: block;
+}
+
+.weekly-actions .header-icon-btn.weekly-refresh-btn:hover:not(:disabled) {
+   background-color: var(--color-surface-hover);
+   border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border-light));
+   transform: translateY(-1px);
 }
 
 .weekly-actions .header-icon-btn.weekly-refresh-btn:active:not(:disabled) {

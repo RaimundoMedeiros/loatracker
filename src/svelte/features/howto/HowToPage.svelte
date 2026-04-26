@@ -61,7 +61,7 @@
       <li><strong>Sort</strong> lets you organize your roster by CP, iLvl, or manually.</li>
       <li>The <strong>Manual</strong> button lets you add a character manually.</li>
       <li>The <strong>Bible</strong> button lets you fetch a character from the Bible API whenever you want.</li>
-      <li><strong>Refresh</strong> updates roster iLvl/CP using Bible data.</li>
+      <li><strong>Sync iLvl/CP</strong> updates roster iLvl/CP using Bible data.</li>
     </ul>
 
     <div class="howto-image-slot" aria-label="Roster card actions">

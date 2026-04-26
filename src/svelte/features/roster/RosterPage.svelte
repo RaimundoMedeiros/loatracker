@@ -817,8 +817,8 @@
         class:cooldown-active={refreshCooldownRemaining > 0}
         title={refreshCooldownRemaining > 0
           ? `Please wait ${refreshCooldownRemaining}s before refreshing again`
-          : 'Refresh roster from Bible API'}
-        aria-label="Refresh roster from Bible API"
+          : 'Sync roster iLvl/CP from Bible API'}
+        aria-label="Sync roster iLvl and CP from Bible API"
         type="button"
         disabled={loading || refreshCooldownRemaining > 0}
         on:click={handleRefreshRoster}
@@ -833,7 +833,7 @@
           {#if refreshCooldownRemaining > 0}
             Wait {refreshCooldownRemaining}s
           {:else}
-            Refresh{#if refreshRelativeLabel}<span class="roster-refresh-subtle"> · updated {refreshRelativeLabel}</span>{/if}
+            Sync iLvl/CP
           {/if}
         </span>
       </button>
