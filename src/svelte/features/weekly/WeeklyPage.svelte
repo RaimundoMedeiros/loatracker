@@ -1497,7 +1497,8 @@
 
   function formatTimestamp(timestamp: string | null) {
     if (!timestamp) return '';
-    const date = new Date(timestamp);
+    const numericTimestamp = Number(timestamp);
+    const date = new Date(Number.isNaN(numericTimestamp) ? timestamp : numericTimestamp);
     if (Number.isNaN(date.getTime())) return '';
 
     const timezone = settings?.timezone && settings.timezone !== 'browser' && settings.timezone !== 'local'
