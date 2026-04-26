@@ -205,7 +205,7 @@
             value={addAlias}
             on:input={(event) => onAddAliasInput(String((event.currentTarget as HTMLInputElement | null)?.value || ''))}
             type="text"
-            placeholder="Alias (optional)"
+            placeholder="Nickname (optional)"
             maxlength="32"
           />
           <button id="friends-add-btn" type="submit" disabled={refreshing || loading || !configured}>Add Friend</button>
@@ -228,7 +228,7 @@
                       maxlength="32"
                       value={aliasDraft}
                       on:input={(event) => onAliasDraftInput(String((event.currentTarget as HTMLInputElement | null)?.value || ''))}
-                      aria-label={`Edit alias for ${row.title}`}
+                      aria-label={`Edit nickname for ${row.title}`}
                       on:keydown={(event) => handleAliasInputKeydown(row.id, event)}
                     />
                   {:else}
@@ -239,11 +239,11 @@
                 <span class="friends-list-item__code">{row.rosterCode}</span>
                 <div class="friends-list-item__actions">
                   {#if editingAliasFriendId === row.id}
-                    <button class="friends-list-item__alias-save" type="button" aria-label={`Save alias for ${row.title}`} on:click={() => onSaveEditingAlias(row.id)}>Save</button>
-                    <button class="friends-list-item__alias-cancel" type="button" aria-label={`Cancel alias edit for ${row.title}`} on:click={onCancelEditingAlias}>Cancel</button>
+                    <button class="friends-list-item__alias-save" type="button" aria-label={`Save nickname for ${row.title}`} on:click={() => onSaveEditingAlias(row.id)}>Save</button>
+                    <button class="friends-list-item__alias-cancel" type="button" aria-label={`Cancel nickname edit for ${row.title}`} on:click={onCancelEditingAlias}>Cancel</button>
                   {:else}
-                    <button class="friends-list-item__alias-edit" type="button" aria-label={`Edit alias for ${row.title}`} on:click={() => onStartEditingAlias(row.id)}>
-                      Alias
+                    <button class="friends-list-item__alias-edit" type="button" aria-label={`Edit nickname for ${row.title}`} on:click={() => onStartEditingAlias(row.id)}>
+                      Nickname
                     </button>
                   {/if}
                   <input

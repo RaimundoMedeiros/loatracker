@@ -13,6 +13,7 @@
 
   let loading = true;
   let autoRaidOnFocus = false;
+  let preserveChestStateOnWeeklyReset = false;
   let paradiseBetaUnlocked = false;
   let paradiseEnabled = false;
   let settings: SettingsPayload | null = null;
@@ -37,6 +38,7 @@
       const loaded = await api.loadSettings();
       settings = (loaded || {}) as SettingsPayload;
       autoRaidOnFocus = Boolean(settings.autoRaidUpdateOnFocus);
+      preserveChestStateOnWeeklyReset = Boolean(settings.preserveChestStateOnWeeklyReset);
       paradiseBetaUnlocked = Boolean(settings.paradiseBetaUnlocked);
       paradiseEnabled = Boolean(settings.paradiseEnabled);
       loading = false;
@@ -64,6 +66,29 @@
       code: ERROR_CODES.STATE.SAVE_FAILED,
       severity: 'error',
       context: { phase: 'SettingsGeneralSection.onAutoRaidToggle', action: 'save-settings' },
+      showToast: true,
+    });
+  }
+
+  async function onPreserveChestStateToggle(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    preserveChestStateOnWeeklyReset = input.checked;
+    if (!settings) return;
+
+    const nextSettings: SettingsPayload = {
+      ...settings,
+      preserveChestStateOnWeeklyReset,
+    };
+
+    await withAsyncError(async () => {
+      await api.saveSettings(nextSettings);
+      settings = nextSettings;
+      emitSettingsChanged(nextSettings);
+      return true;
+    }, {
+      code: ERROR_CODES.STATE.SAVE_FAILED,
+      severity: 'error',
+      context: { phase: 'SettingsGeneralSection.onPreserveChestStateToggle', action: 'save-settings' },
       showToast: true,
     });
   }
@@ -175,6 +200,21 @@
         on:change={onAutoRaidToggle}
         disabled={loading}
         aria-label="Auto update on focus when database is loaded"
+      />
+    </label>
+  </div>
+
+  <div class="settings-section">
+    <h3>Weekly reset</h3>
+    <p class="settings-compact-hint">When enabled, opened chest states are preserved after clicking Reset Data in Weekly Tracker.</p>
+    <label class="settings-auto-raid-toggle" for="preserve-chest-state-on-weekly-reset">
+      <input
+        id="preserve-chest-state-on-weekly-reset"
+        type="checkbox"
+        checked={preserveChestStateOnWeeklyReset}
+        on:change={onPreserveChestStateToggle}
+        disabled={loading}
+        aria-label="Preserve chest state on weekly reset"
       />
     </label>
   </div>

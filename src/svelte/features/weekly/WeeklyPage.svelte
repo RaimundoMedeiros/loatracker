@@ -1528,6 +1528,14 @@
     return `${dateText}${bossText}`;
   }
 
+  function shouldPreserveChestStateOnWeeklyReset() {
+    const rawValue = (settings as Record<string, unknown> | null)?.preserveChestStateOnWeeklyReset;
+    if (rawValue === true || rawValue === 'true' || rawValue === 1) {
+      return true;
+    }
+    return false;
+  }
+
   function preserveHiddenStates(source: CharacterDataMap) {
     const hiddenStates: Record<string, Record<string, true>> = {};
 
@@ -1560,6 +1568,53 @@
         target[characterName][boss] = {
           ...current,
           hidden: true,
+        };
+      });
+    });
+  }
+
+  function preserveChestOpenStates(source: CharacterDataMap) {
+    const chestStates: Record<string, Record<string, number>> = {};
+
+    Object.keys(source || {}).forEach((characterName) => {
+      const entry = source[characterName];
+      if (!entry || typeof entry !== 'object') return;
+      Object.keys(entry).forEach((boss) => {
+        if (boss === '_extraGold') return;
+        const cell = (entry as Record<string, unknown>)[boss];
+        if (!cell || typeof cell !== 'object') return;
+
+        const rawOpenCount = Number((cell as { chestOpenCount?: unknown }).chestOpenCount);
+        const fallbackOpenCount = (cell as RaidCell).chestOpened ? 1 : 0;
+        const parsedOpenCount = Number.isFinite(rawOpenCount) ? Math.floor(rawOpenCount) : fallbackOpenCount;
+        const chestOpenCount = Math.max(0, Math.min(getMaxChestOpenCountForBoss(boss), parsedOpenCount));
+        if (chestOpenCount <= 0) return;
+
+        if (!chestStates[characterName]) {
+          chestStates[characterName] = {};
+        }
+        chestStates[characterName][boss] = chestOpenCount;
+      });
+    });
+
+    return chestStates;
+  }
+
+  function restoreChestOpenStates(target: CharacterDataMap, chestStates: Record<string, Record<string, number>>) {
+    Object.keys(chestStates || {}).forEach((characterName) => {
+      if (!target[characterName]) {
+        target[characterName] = {} as CharacterBossData;
+      }
+
+      Object.keys(chestStates[characterName] || {}).forEach((boss) => {
+        const current = getRaidCell(target, characterName, boss);
+        const maxChestOpenCount = getMaxChestOpenCountForBoss(boss);
+        const chestOpenCount = Math.max(0, Math.min(maxChestOpenCount, Math.floor(Number(chestStates[characterName][boss] || 0))));
+
+        target[characterName][boss] = {
+          ...current,
+          chestOpened: chestOpenCount > 0,
+          chestOpenCount,
         };
       });
     });
@@ -2508,9 +2563,14 @@
       ? characterData
       : (((await api.loadCharacterData?.(rosterId)) as CharacterDataMap | null) || {});
 
+    const preserveChestState = shouldPreserveChestStateOnWeeklyReset();
     const hiddenStates = preserveHiddenStates(currentCharacterData || {});
+    const chestStates = preserveChestState ? preserveChestOpenStates(currentCharacterData || {}) : {};
     const next = {} as CharacterDataMap;
     restoreHiddenStates(next, hiddenStates);
+    if (preserveChestState) {
+      restoreChestOpenStates(next, chestStates);
+    }
 
     const rosterPayload = (await api.loadRoster?.(rosterId)) as RosterPayload | null;
     const rosterState = { ...((rosterPayload?.roster || {}) as Record<string, unknown>) };
@@ -2916,7 +2976,7 @@
               {/if}
               <button type="button" class="header-icon-btn weekly-action-btn" on:click={() => loadFromDatabase({ rosterId: card.rosterId })} disabled={loading}>
                 <img src="./assets/icons/items/download.svg" alt="" aria-hidden="true" />
-                <span class="btn-label">Load Data</span>
+                <span class="btn-label">Load Raids</span>
               </button>
               <button
                 type="button"
@@ -2925,7 +2985,7 @@
                 disabled={loading}
               >
                 <img src="./assets/icons/refresh.svg" alt="" aria-hidden="true" />
-                <span class="btn-label">Reset Data</span>
+                <span class="btn-label">Reset Raids</span>
               </button>
             </div>
             <div class="weekly-actions-right">

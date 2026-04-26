@@ -42,6 +42,7 @@
     dbLastLoadedAt: null,
     autoRaidUpdateMinutes: 0,
     autoRaidUpdateOnFocus: false,
+    preserveChestStateOnWeeklyReset: false,
     timezone: 'browser',
     dateFormat: 'browser',
     timeFormat: 'browser',
@@ -52,6 +53,8 @@
     hiddenBossColumns: [],
     visibleWeeklyRosters: [],
     visibleWeeklyRostersByRoster: {},
+    paradiseBetaUnlocked: false,
+    paradiseEnabled: false,
   };
 
   $: dropZoneDragover = dbDragDepth > 0;

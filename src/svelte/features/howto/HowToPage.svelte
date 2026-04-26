@@ -15,7 +15,7 @@
       <li>When the browser asks for file permission, allow it. This permission is essential for the app to work correctly.</li>
       <li>Check <strong>Permission state</strong>: ideally it should show <strong>granted</strong>.</li>
       <li>Use <strong>How to find encounters.db?</strong> to watch the video showing the exact file location in LOA Logs.</li>
-      <li><strong>Auto-update Raids</strong> runs the same flow as the Weekly Tracker <strong>Load Data</strong> button whenever the app regains focus.</li>
+      <li><strong>Auto-update Raids</strong> runs the same flow as the Weekly Tracker <strong>Load Raids</strong> button whenever the app regains focus.</li>
       <li>In web mode, this automation is still being tested and can have limitations compared to the installed app.</li>
     </ul>
   </section>
@@ -31,13 +31,13 @@
     </ul>
 
     <div class="howto-image-slot" aria-label="Weekly Tracker action buttons">
-      <img src="assets/guide/howto/weekly-actions.png" alt="Weekly Tracker action buttons: gear, load data and reset data" class="howto-guide-image" loading="lazy" />
+      <img src="assets/guide/howto/weekly-actions.png" alt="Weekly Tracker action buttons: gear, load raids and reset raids" class="howto-guide-image" loading="lazy" />
     </div>
     <ul>
       <li>The <strong>gear</strong> opens column selection for what you want to display in the tracker.</li>
-      <li><strong>Load Data</strong> fetches information from the database.</li>
+      <li><strong>Load Raids</strong> fetches raid information from the database.</li>
       <li>You can automate this using the <strong>Auto-update</strong> timer in Settings.</li>
-      <li><strong>Reset Data</strong> clears tracker data.</li>
+      <li><strong>Reset Raids</strong> clears raid tracker data.</li>
     </ul>
 
     <div class="howto-image-slot" aria-label="Raid cell controls">
@@ -47,7 +47,7 @@
       <li>The <strong>chest</strong> means you collected the chest; when checked, chest value is deducted from character gold.</li>
       <li>The <strong>eye</strong> hides the raid cell if the character did that content but should not count gold/reward.</li>
       <li>The <strong>difficulty toggle</strong> switches the difficulty used for that raid.</li>
-      <li>On the <strong>check mark</strong>, if it was set by Load Data/Auto-update, hover to see a tooltip with clear date/time.</li>
+      <li>On the <strong>check mark</strong>, if it was set by Load Raids/Auto-update, hover to see a tooltip with clear date/time.</li>
       <li>Character rows in Weekly Tracker are draggable (reorderable).</li>
     </ul>
   </section>

@@ -16,6 +16,7 @@ type RaidCell = {
   difficulty: Difficulty;
   hidden: boolean;
   chestOpened: boolean;
+  chestOpenCount: number;
   timestamp: string | null;
 };
 
@@ -27,8 +28,11 @@ const DEFAULT_RAID_CELL: RaidCell = {
   difficulty: 'Solo',
   hidden: false,
   chestOpened: false,
+  chestOpenCount: 0,
   timestamp: null,
 };
+
+const DOUBLE_CHEST_RAID_IDS = new Set(['aegir', 'brel', 'mordum', 'armoche']);
 
 function isAutoRaidOnFocusEnabled(settingsNow: Record<string, unknown>) {
   const rawValue = settingsNow.autoRaidUpdateOnFocus;
@@ -111,11 +115,18 @@ function getRaidCell(characterDataState: CharacterDataMap, characterName: string
     return { ...DEFAULT_RAID_CELL };
   }
 
+  const rawOpenCount = Number((cell as { chestOpenCount?: unknown }).chestOpenCount);
+  const fallbackOpenCount = (cell as RaidCell).chestOpened ? 1 : 0;
+  const maxChestOpenCount = getMaxChestOpenCountForBoss(boss);
+  const parsedOpenCount = Number.isFinite(rawOpenCount) ? Math.floor(rawOpenCount) : fallbackOpenCount;
+  const chestOpenCount = Math.max(0, Math.min(maxChestOpenCount, parsedOpenCount));
+
   return {
     cleared: Boolean((cell as RaidCell).cleared),
     difficulty: normalizeDifficulty((cell as RaidCell).difficulty),
     hidden: Boolean((cell as RaidCell).hidden),
-    chestOpened: Boolean((cell as RaidCell).chestOpened),
+    chestOpened: chestOpenCount > 0,
+    chestOpenCount,
     timestamp: (cell as RaidCell).timestamp || null,
   };
 }
@@ -124,6 +135,12 @@ function getRaidConfigByBoss(boss: string) {
   const normalizedId = normalizeRaidBossId(boss);
   if (!normalizedId) return undefined;
   return RAID_CONFIG.find((entry: any) => String(entry.id || '') === normalizedId);
+}
+
+function getMaxChestOpenCountForBoss(boss: string) {
+  const raid = getRaidConfigByBoss(boss) as { id?: string } | undefined;
+  const raidId = String(raid?.id || normalizeRaidBossId(boss) || '').toLowerCase();
+  return DOUBLE_CHEST_RAID_IDS.has(raidId) ? 2 : 1;
 }
 
 function disallowSoloForBoss(boss: string) {

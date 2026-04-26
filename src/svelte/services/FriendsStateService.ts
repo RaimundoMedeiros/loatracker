@@ -23,6 +23,7 @@ const DEFAULT_SETTINGS: SettingsPayload = {
   timeFormat: 'browser',
   autoRaidUpdateMinutes: 0,
   autoRaidUpdateOnFocus: false,
+  preserveChestStateOnWeeklyReset: false,
   closeToTray: false,
   closeToTrayPrompted: false,
   hiddenColumns: [],
