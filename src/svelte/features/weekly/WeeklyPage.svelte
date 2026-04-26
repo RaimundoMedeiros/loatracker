@@ -2963,10 +2963,7 @@
                 on:click={() => handleRefreshWeeklyRoster(card.rosterId)}
                 disabled={loading || Boolean(refreshingRosterIds[card.rosterId]) || (refreshCooldownByRoster[card.rosterId] || 0) > 0}
               >
-                <svg class="weekly-refresh-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path d="M21 12a9 9 0 1 1-3.3-6.9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                  <path d="M21 3v6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
+                <img class="weekly-refresh-icon" src="./assets/icons/items/refresh.svg" width="16" height="16" alt="" aria-hidden="true" />
                 <span class="btn-label">
                   {#if refreshingRosterIds[card.rosterId]}Syncing{:else if (refreshCooldownByRoster[card.rosterId] || 0) > 0}Wait {refreshCooldownByRoster[card.rosterId]}s{:else}Sync iLvl/CP{/if}
                 </span>
@@ -2975,17 +2972,14 @@
               <button
                 type="button"
                 class="header-icon-btn weekly-action-btn"
-                title="Load cleared raids from encounters.db for this roster"
-                aria-label="Load cleared raids from encounters database"
+                title="Refresh cleared raids from encounters.db for this roster"
+                aria-label="Refresh cleared raids from encounters database"
                 on:click={() => loadFromDatabase({ rosterId: card.rosterId })}
                 disabled={loading}
+                style="padding: 6px 10px;"
               >
-                <svg class="weekly-load-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path d="M12 4v10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                  <path d="m8 10 4 4 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                  <path d="M4 20h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-                <span class="btn-label">Load Raids</span>
+                <img class="weekly-load-icon" src="./assets/icons/items/refreshraids.svg" width="16" height="16" alt="" aria-hidden="true" style="filter: none;" />
+                <span class="btn-label">Refresh Raids</span>
               </button>
               <button
                 type="button"
@@ -2994,11 +2988,9 @@
                 aria-label="Reset weekly raid progress for this roster"
                 on:click={() => openWeeklyConfirm('reset-weekly', card.rosterId, card.rosterName)}
                 disabled={loading}
+                style="padding: 6px 10px;"
               >
-                <svg class="weekly-reset-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path d="M3 12a9 9 0 1 0 3.3-6.9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                  <path d="M3 3v6h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
+                <img class="weekly-reset-icon" src="./assets/icons/items/resetraids.svg" width="16" height="16" alt="" aria-hidden="true" />
                 <span class="btn-label">Reset Raids</span>
               </button>
             </div>
