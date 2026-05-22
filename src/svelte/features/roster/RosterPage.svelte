@@ -96,7 +96,7 @@
   async function refreshParadiseEnabled() {
     try {
       const settings = await api.loadSettings?.();
-      paradiseEnabled = Boolean(settings?.paradiseBetaUnlocked) && Boolean(settings?.paradiseEnabled);
+      paradiseEnabled = Boolean(settings?.paradiseEnabled);
     } catch {
       paradiseEnabled = false;
     }
@@ -106,7 +106,7 @@
     const detail = (event as CustomEvent).detail as { settings?: any } | undefined;
     const settings = detail?.settings;
     if (settings) {
-      paradiseEnabled = Boolean(settings.paradiseBetaUnlocked) && Boolean(settings.paradiseEnabled);
+      paradiseEnabled = Boolean(settings.paradiseEnabled);
     } else {
       void refreshParadiseEnabled();
     }

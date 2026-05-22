@@ -1,7 +1,15 @@
 <script lang="ts">
   import { onMount, onDestroy, tick } from 'svelte';
+  import { get } from 'svelte/store';
   import { UIHelper } from '../../utils/uiHelper';
-  import { notifyRosterChanged, rosterChangeVersion, visibleRostersChangeVersion } from '../../stores/rosterSync';
+  import {
+    WEEKLY_VIEW_ALL,
+    notifyRosterChanged,
+    rosterChangeVersion,
+    visibleRostersChangeVersion,
+    weeklyViewSelection,
+  } from '../../stores/rosterSync';
+  import { getDisplayRosterIds, getGlobalVisibleRosterIds, sortRosterIds } from '../../utils/rosterVisibility';
   import type { AppApi, DbAccessSupport, SettingsPayload, RosterPayload } from '../../../types/app-api';
   import {
     BOSSES,
@@ -120,6 +128,8 @@
   let visibleCharacters: string[] = [];
   let unsubscribeRosterChanges: (() => void) | null = null;
   let unsubscribeVisibleRosterChanges: (() => void) | null = null;
+  let unsubscribeViewSelectionChanges: (() => void) | null = null;
+  let rosterChangedReloadScheduled = false;
   let lastDebugSignature = '';
   let hiddenColumns: string[] = [];
   let columnSettingsOpen = false;
@@ -647,6 +657,16 @@
       handleRosterChanged();
     });
 
+    let isInitialViewSelectionSync = true;
+    unsubscribeViewSelectionChanges = weeklyViewSelection.subscribe(() => {
+      if (isInitialViewSelectionSync) {
+        isInitialViewSelectionSync = false;
+        return;
+      }
+      debugWeekly('sync:weeklyViewSelection');
+      handleRosterChanged();
+    });
+
     document.addEventListener('click', handleGlobalClick);
     document.addEventListener('keydown', handleGlobalKeydown);
     document.addEventListener('visibilitychange', handleVisibilityChangeForAutoRaid);
@@ -666,6 +686,8 @@
     unsubscribeRosterChanges = null;
     unsubscribeVisibleRosterChanges?.();
     unsubscribeVisibleRosterChanges = null;
+    unsubscribeViewSelectionChanges?.();
+    unsubscribeViewSelectionChanges = null;
     document.removeEventListener('click', handleGlobalClick);
     document.removeEventListener('keydown', handleGlobalKeydown);
     document.removeEventListener('visibilitychange', handleVisibilityChangeForAutoRaid);
@@ -723,25 +745,20 @@
     const customEvent = event as CustomEvent<{ settings?: SettingsPayload }>;
     const nextSettings = customEvent?.detail?.settings;
     if (nextSettings && typeof nextSettings === 'object') {
-      const previousVisibleLegacy = Array.isArray(settings?.visibleWeeklyRosters)
-        ? [...(settings?.visibleWeeklyRosters as string[])]
-        : [];
-      const previousVisibleByRoster = JSON.stringify(settings?.visibleWeeklyRostersByRoster || {});
+      const previousVisible = JSON.stringify(
+        Array.isArray(settings?.visibleWeeklyRosters) ? settings.visibleWeeklyRosters : [],
+      );
 
       settings = {
         ...(settings || {}),
         ...nextSettings,
       } as SettingsPayload;
 
-      const nextVisibleLegacy = Array.isArray(settings?.visibleWeeklyRosters)
-        ? [...(settings?.visibleWeeklyRosters as string[])]
-        : [];
-      const nextVisibleByRoster = JSON.stringify(settings?.visibleWeeklyRostersByRoster || {});
+      const nextVisible = JSON.stringify(
+        Array.isArray(settings?.visibleWeeklyRosters) ? settings.visibleWeeklyRosters : [],
+      );
 
-      if (
-        previousVisibleByRoster !== nextVisibleByRoster ||
-        JSON.stringify(previousVisibleLegacy) !== JSON.stringify(nextVisibleLegacy)
-      ) {
+      if (previousVisible !== nextVisible) {
         void loadAll();
       }
 
@@ -1004,30 +1021,6 @@
     return [];
   }
 
-  function getVisibleRosterIdsForActive(
-    safeSettings: SettingsPayload | null | undefined,
-    activeId: string,
-    rosterIds: string[]
-  ) {
-    const settingsNow: Partial<SettingsPayload> = safeSettings ?? {};
-    const byRoster = (settingsNow.visibleWeeklyRostersByRoster || {}) as Record<string, string[]>;
-    const hasEntry = Boolean(activeId) && Object.prototype.hasOwnProperty.call(byRoster, activeId);
-
-    const selected = hasEntry
-      ? (Array.isArray(byRoster[activeId]) ? byRoster[activeId] : [])
-      : [];
-
-    const selectedList = (selected || [])
-      .map((id: unknown) => String(id))
-      .filter((id: string) => rosterIds.includes(id));
-
-    if (activeId && !selectedList.includes(activeId)) {
-      selectedList.push(activeId);
-    }
-
-    return rosterIds.filter((id) => selectedList.includes(id));
-  }
-
   function buildWeeklyCardsFromState(
     activeRosterIdState: string,
     visibleRosterIdsState: string[],
@@ -1133,9 +1126,16 @@
     return '';
   }
 
+  // Coalesce reloads: a single user action (e.g. switching roster) can bump
+  // several sync stores in the same tick; collapse them into one loadAll().
   function handleRosterChanged() {
-    debugWeekly('handleRosterChanged:reload');
-    loadAll();
+    if (rosterChangedReloadScheduled) return;
+    rosterChangedReloadScheduled = true;
+    queueMicrotask(() => {
+      rosterChangedReloadScheduled = false;
+      debugWeekly('handleRosterChanged:reload');
+      loadAll();
+    });
   }
 
   function getCharacter(name: string) {
@@ -1769,20 +1769,43 @@
     try {
       await ensureDailyResetParity();
 
-      const rosterId = await ensureActiveRosterId();
-      if (!rosterId) {
+      const initialRosterId = await ensureActiveRosterId();
+      if (!initialRosterId) {
         updateDebugSnapshot('loadAll:no-active-roster');
         showToast('No active roster selected', TOAST_TYPES.ERROR);
         debugWeekly('loadAll:no-active-roster');
         return;
       }
 
-      activeRosterId = rosterId;
-      const [loadedRoster, loadedCharacterData, loadedSettings, loadedRosterMeta] = await Promise.all([
-        api.loadRoster?.(rosterId),
-        api.loadCharacterData?.(rosterId),
+      const [loadedSettings, loadedRosterMeta] = await Promise.all([
         api.loadSettings?.(),
         api.getRosterList?.(),
+      ]);
+      settings = (loadedSettings || {}) as SettingsPayload;
+      const rosterMeta = Array.isArray(loadedRosterMeta) ? loadedRosterMeta : [];
+      const sortedAllRosterIds = sortRosterIds(rosterMeta);
+      const allRosterIds = Array.from(new Set([...sortedAllRosterIds, initialRosterId]));
+      const globalVisible = getGlobalVisibleRosterIds(
+        settings,
+        sortedAllRosterIds.length ? sortedAllRosterIds : [initialRosterId],
+      );
+      let displayIds = getDisplayRosterIds(get(weeklyViewSelection), globalVisible, allRosterIds);
+      if (displayIds.length === 0) {
+        displayIds = [initialRosterId];
+      }
+
+      // Primary card = the active roster when it is shown, otherwise the first
+      // displayed roster (keeps the live/editable card inside the visible set).
+      const rosterId = displayIds.includes(initialRosterId) ? initialRosterId : displayIds[0];
+      if (rosterId !== initialRosterId) {
+        await api.switchActiveRoster?.(rosterId);
+      }
+      activeRosterId = rosterId;
+      visibleRosterIds = displayIds;
+
+      const [loadedRoster, loadedCharacterData] = await Promise.all([
+        api.loadRoster?.(rosterId),
+        api.loadCharacterData?.(rosterId),
       ]);
       await refreshDbAccessSupport();
       debugWeekly('loadAll:payload-loaded', {
@@ -1809,16 +1832,7 @@
       });
 
       characterData = (loadedCharacterData || {}) as CharacterDataMap;
-      settings = (loadedSettings || {}) as SettingsPayload;
       hiddenColumns = getHiddenColumnsForRoster(settings, rosterId);
-      const rosterMeta = Array.isArray(loadedRosterMeta) ? loadedRosterMeta : [];
-      const allRosterIdsFromMeta = rosterMeta
-        .map((item) => String(item?.id || '').trim())
-        .filter((id) => Boolean(id));
-      const allRosterIds = Array.from(new Set([
-        ...allRosterIdsFromMeta,
-        rosterId,
-      ]));
       rosterNamesById = Object.fromEntries(
         rosterMeta
           .map((item) => [String(item?.id || '').trim(), String(item?.name || '').trim() || 'Weekly Tracker'])
@@ -1828,10 +1842,6 @@
         [rosterId]: rosterNamesById[rosterId] || 'Weekly Tracker',
         ...rosterNamesById,
       };
-      visibleRosterIds = getVisibleRosterIdsForActive(settings, rosterId, allRosterIds);
-      if (visibleRosterIds.length === 0) {
-        visibleRosterIds = [rosterId];
-      }
 
       const nextCache: Record<string, WeeklyCardSnapshot> = {};
       await Promise.all(
@@ -2897,21 +2907,6 @@
             <div class="weekly-top-left">
               <h1 class="weekly-title">{card.rosterName}</h1>
               <div class="roster-dailies" aria-label="Roster dailies">
-                <button
-                  type="button"
-                  class="roster-daily-btn no-border large-icon"
-                  class:completed={Boolean(cardDailyData?.roster?.thaemine?.completed)}
-                  title={getRosterDailyTooltipFrom(cardDailyData, 'thaemine') || 'Extreme Thaemine'}
-                  aria-label={cardDailyData?.roster?.thaemine?.completed ? 'Toggle Thaemine' : 'Extreme Thaemine'}
-                  on:click={() => toggleRosterDaily(card.rosterId, 'thaemine')}
-                >
-                  {#if cardDailyData?.roster?.thaemine?.completed}
-                    <img src="./assets/icons/items/thaedone.png" alt="" aria-hidden="true" />
-                  {:else}
-                    <img src="./assets/icons/items/thaeundone.png" alt="" aria-hidden="true" />
-                  {/if}
-                </button>
-
                 <button
                   type="button"
                   class="roster-daily-btn"

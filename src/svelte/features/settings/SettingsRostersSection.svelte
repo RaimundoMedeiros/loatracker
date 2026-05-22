@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { RosterService } from '../../services/RosterService';
-  import type { RosterMeta } from '../../../types/app-api';
+  import { DEFAULT_SETTINGS, RosterService } from '../../services/RosterService';
+  import type { RosterMeta, SettingsPayload } from '../../../types/app-api';
   import {
     consumePendingManageRoster,
     notifyRosterChanged,
@@ -14,6 +14,7 @@
   import { TOAST_TYPES } from '../../legacy/config/constants.js';
   import { withAsyncError } from '../../utils/errorWrappers';
   import { ERROR_CODES } from '../../utils/errorCodes';
+  import { getGlobalVisibleRosterIds, sortRosterIds } from '../../utils/rosterVisibility';
 
   type DialogMode = 'create' | 'rename' | 'delete' | null;
 
@@ -21,6 +22,7 @@
 
   let rosters: RosterMeta[] = [];
   let activeRosterId = '';
+  let settings: SettingsPayload = { ...DEFAULT_SETTINGS };
   let loading = true;
   let manageOpen = false;
   let unsubscribe: (() => void) | null = null;
@@ -32,6 +34,8 @@
 
   $: dialogOpen = dialogMode !== null;
   $: sortedRosters = [...rosters].sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
+  $: sortedRosterIds = sortRosterIds(rosters);
+  $: visibleRosterSet = new Set(getGlobalVisibleRosterIds(settings, sortedRosterIds));
   $: dialogTargetRoster = sortedRosters.find((r) => r.id === dialogTargetRosterId) || null;
   $: dialogTitle = dialogMode === 'create'
     ? 'Create roster'
@@ -55,11 +59,47 @@
     ui.showToast(message, type);
   }
 
+  async function toggleVisibleRoster(rosterId: string) {
+    if (!rosterId) return;
+
+    const current = getGlobalVisibleRosterIds(settings, sortedRosterIds);
+    const shouldShow = !current.includes(rosterId);
+
+    // Keep at least one roster visible in Weekly/Paradise.
+    if (!shouldShow && current.length <= 1) return;
+
+    const nextList = shouldShow
+      ? sortedRosterIds.filter((id) => current.includes(id) || id === rosterId)
+      : current.filter((id) => id !== rosterId);
+
+    const nextSettings: SettingsPayload = {
+      ...settings,
+      visibleWeeklyRosters: [...nextList],
+    };
+
+    await withAsyncError(async () => {
+      await RosterService.saveSettings(nextSettings);
+      settings = nextSettings;
+      notifyVisibleRostersChanged();
+      return true;
+    }, {
+      code: ERROR_CODES.ROSTER_SWITCHER.TOGGLE_VISIBLE_FAILED,
+      severity: 'error',
+      context: {
+        phase: 'SettingsRostersSection.toggleVisibleRoster',
+        action: 'toggle-visible-roster',
+        rosterId,
+      },
+      showToast: true,
+    });
+  }
+
   async function refresh() {
     await withAsyncError(async () => {
       const snapshot = await RosterService.loadRosterSwitcherState();
       rosters = snapshot.rosters;
       activeRosterId = snapshot.activeRosterId;
+      settings = snapshot.settings;
       loading = false;
       return true;
     }, {
@@ -236,6 +276,8 @@
     <p class="settings-compact-hint">No rosters yet.</p>
   {:else}
     {#each sortedRosters as roster (roster.id)}
+      {@const isVisible = visibleRosterSet.has(roster.id)}
+      {@const isLastVisible = isVisible && visibleRosterSet.size <= 1}
       <div class="settings-roster-row" class:active={roster.id === activeRosterId}>
         <div class="settings-roster-row__info">
           <div class="settings-roster-row__name">{roster.name}</div>
@@ -245,6 +287,21 @@
         </div>
         <span class="settings-roster-row__chip">{Number(roster.characterCount || 0)} chars</span>
         <div class="settings-roster-row__actions">
+          <button
+            type="button"
+            class="settings-roster-row__action visible-toggle"
+            class:is-visible={isVisible}
+            disabled={isLastVisible}
+            title={isLastVisible
+              ? 'At least one roster must stay visible'
+              : isVisible
+                ? 'Hide this roster from Weekly and Paradise'
+                : 'Show this roster in Weekly and Paradise'}
+            aria-pressed={isVisible}
+            on:click={() => toggleVisibleRoster(roster.id)}
+          >
+            <span>{isVisible ? 'Hide' : 'Show'}</span>
+          </button>
           <button type="button" class="settings-roster-row__action" on:click={() => openRenameDialog(roster)}>Rename</button>
           {#if sortedRosters.length > 1}
             <button type="button" class="settings-roster-row__action danger" on:click={() => openDeleteDialog(roster)}>Delete</button>
@@ -415,6 +472,22 @@
     background: var(--color-surface-hover);
     color: var(--color-text);
     transform: translateY(-1px);
+  }
+
+  .settings-roster-row__action.visible-toggle.is-visible {
+    color: var(--color-primary);
+    border-color: color-mix(in srgb, var(--color-primary) 42%, var(--color-border));
+  }
+
+  .settings-roster-row__action.visible-toggle:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .settings-roster-row__action.visible-toggle:disabled:hover {
+    background: var(--color-surface);
+    transform: none;
   }
 
   .settings-roster-row__action.danger {

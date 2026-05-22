@@ -100,7 +100,6 @@
   let customPagePromise: Promise<any> | null = null;
   let settingsLayoutPromise: Promise<any> | null = null;
   let howToPagePromise: Promise<any> | null = null;
-  let paradiseBetaUnlocked = false;
   let paradiseEnabled = false;
 
   function loadWeeklyPage() {
@@ -766,47 +765,9 @@
   async function syncParadiseFlagsFromSettings() {
     try {
       const settings = await api.loadSettings?.();
-      paradiseBetaUnlocked = settings?.paradiseBetaUnlocked === true;
-      paradiseEnabled = paradiseBetaUnlocked && settings?.paradiseEnabled === true;
+      paradiseEnabled = settings?.paradiseEnabled === true;
     } catch {
-      paradiseBetaUnlocked = false;
       paradiseEnabled = false;
-    }
-  }
-
-  async function unlockParadiseBeta() {
-    try {
-      const settings = await api.loadSettings?.();
-      if (settings?.paradiseBetaUnlocked === true) {
-        paradiseBetaUnlocked = true;
-        paradiseEnabled = settings?.paradiseEnabled === true;
-        return;
-      }
-      await api.saveSettings?.({ ...(settings || {}), paradiseBetaUnlocked: true } as any);
-      paradiseBetaUnlocked = true;
-      paradiseEnabled = (settings?.paradiseEnabled === true);
-      document.dispatchEvent(new CustomEvent('settingsChanged', {
-        detail: { settings: { ...(settings || {}), paradiseBetaUnlocked: true } },
-      }));
-      console.info('[Paradise] BETA unlocked. Open Settings → General to enable the feature.');
-    } catch (err) {
-      console.warn('[Paradise] Failed to unlock beta', err);
-    }
-  }
-
-  function installParadiseConsoleFlag() {
-    try {
-      Object.defineProperty(window, 'ENABLE_PARADISE_BETA', {
-        configurable: true,
-        get() { return paradiseBetaUnlocked; },
-        set(value: unknown) {
-          if (value === true) {
-            void unlockParadiseBeta();
-          }
-        },
-      });
-    } catch (err) {
-      console.warn('[Paradise] Failed to install console flag', err);
     }
   }
 
@@ -817,8 +778,7 @@
       void syncParadiseFlagsFromSettings();
       return;
     }
-    paradiseBetaUnlocked = settings.paradiseBetaUnlocked === true;
-    paradiseEnabled = paradiseBetaUnlocked && settings.paradiseEnabled === true;
+    paradiseEnabled = settings.paradiseEnabled === true;
   }
 
   onMount(() => {
@@ -827,7 +787,6 @@
     document.addEventListener('visibilitychange', onAppVisibilityChange);
     document.addEventListener('wtl-highlight-settings-cta', onHighlightSettingsCta as EventListener);
     document.addEventListener('settingsChanged', onSettingsChanged as EventListener);
-    installParadiseConsoleFlag();
     void syncParadiseFlagsFromSettings();
     disableBrowserInputSuggestions();
     startInputAutocompleteObserver();

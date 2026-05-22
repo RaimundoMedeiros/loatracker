@@ -1,6 +1,7 @@
 import type { AppApi, RosterPayload, SettingsPayload } from '../../types/app-api';
 import { BOSSES, BOSS_MAP, RAID_CONFIG } from '../legacy/config/constants.js';
 import { normalizeRaidKey } from '../domain/shared/raidDomain';
+import { getGlobalVisibleRosterIds, sortRosterIds } from '../utils/rosterVisibility';
 
 type Difficulty = 'Solo' | 'Normal' | 'Hard' | 'Nightmare';
 
@@ -173,16 +174,13 @@ function getAllowedDifficultiesForRoster(
   return soloDisabled ? ['Normal'] : ['Solo', 'Normal'];
 }
 
-function getVisibleRostersForActive(settingsNow: Record<string, unknown>, activeRosterId: string) {
-  const typed = (settingsNow || {}) as Partial<SettingsPayload>;
-  const byRoster = (typed.visibleWeeklyRostersByRoster || {}) as Record<string, string[]>;
-  const fromRoster = Array.isArray(byRoster?.[activeRosterId]) ? byRoster[activeRosterId] : [];
-  const fromLegacy = Array.isArray(typed.visibleWeeklyRosters) ? typed.visibleWeeklyRosters : [];
-  const selected = fromRoster.length > 0 ? fromRoster : fromLegacy;
-
-  return selected
-    .map((entry) => String(entry || '').trim())
-    .filter((entry) => Boolean(entry));
+async function getVisibleRostersForUpdate(
+  api: AppApi,
+  settingsNow: Record<string, unknown>,
+): Promise<string[]> {
+  const rosterList = await api.getRosterList?.();
+  const sortedRosterIds = sortRosterIds(Array.isArray(rosterList) ? rosterList : []);
+  return getGlobalVisibleRosterIds(settingsNow as SettingsPayload, sortedRosterIds);
 }
 
 async function loadRaidsIntoRosterFromDatabase(
@@ -286,14 +284,24 @@ export async function runAutoRaidFocusUpdate(
     ? options?.targetRosterIds
     : null;
 
+  // Resolving auxiliary visible rosters is best-effort: a failing
+  // getRosterList() must not prevent the active roster from updating.
+  let visibleRosterIds: string[] = [];
+  if (!requestedRosterIds) {
+    try {
+      visibleRosterIds = await getVisibleRostersForUpdate(api, settingsNow);
+    } catch (error) {
+      void api.logDebug?.('friends:auto-raid-focus-update-visible-rosters-failed', {
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
   const targetRosterIds = requestedRosterIds
     ? Array.from(new Set(requestedRosterIds
       .map((entry) => String(entry || '').trim())
       .filter((entry) => Boolean(entry))))
-    : Array.from(new Set([
-      activeRosterId,
-      ...getVisibleRostersForActive(settingsNow, activeRosterId),
-    ]));
+    : Array.from(new Set([activeRosterId, ...visibleRosterIds]));
 
   const updateRoster = options?.updateRoster
     ? options.updateRoster
