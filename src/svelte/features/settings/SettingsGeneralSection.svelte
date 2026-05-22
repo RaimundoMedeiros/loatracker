@@ -14,7 +14,6 @@
   let loading = true;
   let autoRaidOnFocus = false;
   let preserveChestStateOnWeeklyReset = false;
-  let paradiseBetaUnlocked = false;
   let paradiseEnabled = false;
   let settings: SettingsPayload | null = null;
 
@@ -39,7 +38,6 @@
       settings = (loaded || {}) as SettingsPayload;
       autoRaidOnFocus = Boolean(settings.autoRaidUpdateOnFocus);
       preserveChestStateOnWeeklyReset = Boolean(settings.preserveChestStateOnWeeklyReset);
-      paradiseBetaUnlocked = Boolean(settings.paradiseBetaUnlocked);
       paradiseEnabled = Boolean(settings.paradiseEnabled);
       loading = false;
       return true;
@@ -205,7 +203,7 @@
   </div>
 
   <div class="settings-section">
-    <h3>Weekly reset</h3>
+    <h3>Keep opened chests</h3>
     <p class="settings-compact-hint">When enabled, opened chest states are preserved after clicking Reset Data in Weekly Tracker.</p>
     <label class="settings-auto-raid-toggle" for="preserve-chest-state-on-weekly-reset">
       <input
@@ -219,22 +217,20 @@
     </label>
   </div>
 
-  {#if paradiseBetaUnlocked}
-    <div class="settings-section">
-      <h3>Paradise <span class="paradise-beta-badge">BETA</span></h3>
-      <p class="settings-compact-hint">Enables the experimental Paradise Tracker. A new tab appears in the header, and each character in Roster Management gains a "Show in Paradise" toggle.</p>
-      <label class="settings-auto-raid-toggle" for="paradise-enabled">
-        <input
-          id="paradise-enabled"
-          type="checkbox"
-          checked={paradiseEnabled}
-          on:change={onParadiseToggle}
-          disabled={loading}
-          aria-label="Enable Paradise Tracker"
-        />
-      </label>
-    </div>
-  {/if}
+  <div class="settings-section">
+    <h3>Paradise Tracker</h3>
+    <p class="settings-compact-hint">Enables the Paradise Tracker. A new tab appears in the header, and each character in Roster Management gains a "Show in Paradise" toggle.</p>
+    <label class="settings-auto-raid-toggle" for="paradise-enabled">
+      <input
+        id="paradise-enabled"
+        type="checkbox"
+        checked={paradiseEnabled}
+        on:change={onParadiseToggle}
+        disabled={loading}
+        aria-label="Enable Paradise Tracker"
+      />
+    </label>
+  </div>
 
   <div class="settings-section settings-danger-zone">
     <h3>App data</h3>
@@ -243,20 +239,6 @@
   </div>
 </div>
 
-<style>
-  .paradise-beta-badge {
-    display: inline-block;
-    margin-left: 8px;
-    padding: 2px 6px;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    border-radius: 4px;
-    background: #a855f7;
-    color: #fff;
-    vertical-align: middle;
-  }
-</style>
 
 {#if confirmOpen}
   <div class="settings-confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="settings-confirm-title">

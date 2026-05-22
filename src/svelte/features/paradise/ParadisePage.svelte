@@ -1,9 +1,11 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import type { AppApi, ParadiseData, ParadiseRaidKey } from '../../../types/app-api';
+  import { get } from 'svelte/store';
+  import type { AppApi, ParadiseData, ParadiseRaidKey, SettingsPayload } from '../../../types/app-api';
   import { UIHelper } from '../../utils/uiHelper';
   import { CLASS_ICONS, TOAST_TYPES } from '../../legacy/config/constants.js';
-  import { rosterChangeVersion } from '../../stores/rosterSync';
+  import { rosterChangeVersion, visibleRostersChangeVersion, weeklyViewSelection } from '../../stores/rosterSync';
+  import { getDisplayRosterIds, getGlobalVisibleRosterIds, sortRosterIds } from '../../utils/rosterVisibility';
   import { characterKeys, normalizeCharacter, orderedEntries } from '../roster/rosterDomain';
   import { formatItemLevelDisplay } from '../../utils/formValidator';
   import {
@@ -20,25 +22,45 @@
   const api: AppApi = window.api;
   const ui = new UIHelper();
 
+  type ParadiseRosterGroup = {
+    rosterId: string;
+    rosterName: string;
+    roster: Record<string, unknown>;
+    entries: { name: string }[];
+  };
+
   let activeRosterId = '';
-  let roster: Record<string, unknown> = {};
-  let order: string[] = [];
-  let paradise: ParadiseData = { weekKey: '', data: {} };
+  let groups: ParadiseRosterGroup[] = [];
+  let paradiseByRoster: Record<string, ParadiseData> = {};
   let loading = true;
   let resetConfirmOpen = false;
+  let resetTargetRosterId = '';
   let resetBusy = false;
   let unsubscribeRosterChanges: (() => void) | null = null;
+  let unsubscribeVisibleRosterChanges: (() => void) | null = null;
+  let unsubscribeViewSelectionChanges: (() => void) | null = null;
+  let reloadScheduled = false;
   // Bumped on reset so {#each} keys change and checkbox DOM nodes remount,
   // forcing Svelte to write the fresh `checked={false}` property even after
   // the user toggled the box (browser keeps the live property otherwise).
   let resetNonce = 0;
 
-  $: visibleEntries = orderedEntries(roster, order).filter(
-    (entry) => entry.data.visibleInParadise === true,
-  );
+  $: hasAnyEntry = groups.some((group) => group.entries.length > 0);
+  $: resetTargetRosterName = groups.find((group) => group.rosterId === resetTargetRosterId)?.rosterName || '';
 
   function showToast(message: string, type = TOAST_TYPES.INFO) {
     ui.showToast(message, type);
+  }
+
+  // Coalesce reloads: one user action can bump several sync stores in the
+  // same tick; collapse them into a single loadAll().
+  function scheduleReload() {
+    if (reloadScheduled) return;
+    reloadScheduled = true;
+    queueMicrotask(() => {
+      reloadScheduled = false;
+      void loadAll();
+    });
   }
 
   function getClassIconPath(className: string): string | null {
@@ -74,68 +96,125 @@
     try {
       activeRosterId = await resolveActiveRosterId();
       if (!activeRosterId) {
-        roster = {};
-        order = [];
-        paradise = { weekKey: getParadiseWeekKey(), data: {} };
+        groups = [];
+        paradiseByRoster = {};
         return;
       }
 
-      const loaded = await api.loadRoster(activeRosterId);
-      roster = loaded?.roster || {};
-      const keys = characterKeys(roster);
-      const loadedOrder = Array.isArray(loaded?.order) ? loaded.order.filter((name) => keys.includes(name)) : [];
-      const missing = keys.filter((name) => !loadedOrder.includes(name));
-      order = [...loadedOrder, ...missing];
+      const [rosterList, loadedSettings] = await Promise.all([
+        api.getRosterList?.(),
+        api.loadSettings?.(),
+      ]);
 
-      const storedRaw = await api.loadParadiseData?.(activeRosterId);
-      const stored = normalizeParadiseData(storedRaw);
-      const names = orderedEntries(roster, order)
-        .filter((entry) => entry.data.visibleInParadise === true)
-        .map((entry) => entry.name);
-      const { data: nextData, changed } = applyWeeklyResetIfNeeded(stored, names);
-      paradise = nextData;
-      if (changed) {
-        await api.saveParadiseData?.(activeRosterId, paradise);
+      const settings = (loadedSettings || {}) as SettingsPayload;
+      const rosterMeta = Array.isArray(rosterList) ? rosterList : [];
+      const sortedAllRosterIds = sortRosterIds(rosterMeta);
+      const allRosterIds = Array.from(new Set([...sortedAllRosterIds, activeRosterId]));
+      const rosterNamesById: Record<string, string> = Object.fromEntries(
+        rosterMeta
+          .map((item) => [String(item?.id || '').trim(), String(item?.name || '').trim() || 'Roster'])
+          .filter(([id]) => Boolean(id)),
+      );
+
+      const globalVisible = getGlobalVisibleRosterIds(
+        settings,
+        sortedAllRosterIds.length ? sortedAllRosterIds : [activeRosterId],
+      );
+      let visibleRosterIds = getDisplayRosterIds(get(weeklyViewSelection), globalVisible, allRosterIds);
+      if (visibleRosterIds.length === 0) {
+        visibleRosterIds = [activeRosterId];
       }
+
+      const nextGroups: ParadiseRosterGroup[] = [];
+      const nextParadise: Record<string, ParadiseData> = {};
+
+      await Promise.all(
+        visibleRosterIds.map(async (rosterId) => {
+          const loaded = await api.loadRoster(rosterId);
+          const rosterState = loaded?.roster || {};
+          const keys = characterKeys(rosterState);
+          const loadedOrder = Array.isArray(loaded?.order) ? loaded.order.filter((name) => keys.includes(name)) : [];
+          const missing = keys.filter((name) => !loadedOrder.includes(name));
+          const rosterOrder = [...loadedOrder, ...missing];
+
+          const entries = orderedEntries(rosterState, rosterOrder)
+            .filter((entry) => entry.data.visibleInParadise === true)
+            .map((entry) => ({ name: entry.name }));
+
+          const storedRaw = await api.loadParadiseData?.(rosterId);
+          const stored = normalizeParadiseData(storedRaw);
+          const { data: nextData, changed } = applyWeeklyResetIfNeeded(stored, entries.map((e) => e.name));
+          nextParadise[rosterId] = nextData;
+          if (changed) {
+            await api.saveParadiseData?.(rosterId, nextData);
+          }
+
+          nextGroups.push({
+            rosterId,
+            rosterName: rosterNamesById[rosterId] || 'Roster',
+            roster: rosterState,
+            entries,
+          });
+        }),
+      );
+
+      // Preserve the visible-roster order (Promise.all resolves out of order).
+      const orderIndex = new Map(visibleRosterIds.map((id, index) => [id, index]));
+      nextGroups.sort((a, b) => (orderIndex.get(a.rosterId) ?? 0) - (orderIndex.get(b.rosterId) ?? 0));
+
+      groups = nextGroups;
+      paradiseByRoster = nextParadise;
     } finally {
       loading = false;
     }
   }
 
-  function getEntry(name: string) {
-    return normalizeParadiseEntry(paradise.data[name] ?? emptyParadiseEntry());
+  function getEntry(rosterId: string, name: string) {
+    const data = paradiseByRoster[rosterId]?.data?.[name];
+    return normalizeParadiseEntry(data ?? emptyParadiseEntry());
   }
 
-  async function onCheckboxChange(name: string, key: ParadiseRaidKey, event: Event) {
+  async function onCheckboxChange(rosterId: string, name: string, key: ParadiseRaidKey, event: Event) {
     const input = event.currentTarget as HTMLInputElement;
-    if (!activeRosterId) return;
-    paradise = setParadiseCheckbox(paradise, name, key, input.checked);
+    const current = paradiseByRoster[rosterId];
+    if (!rosterId || !current) return;
+    const next = setParadiseCheckbox(current, name, key, input.checked);
+    paradiseByRoster = { ...paradiseByRoster, [rosterId]: next };
     try {
-      await api.saveParadiseData?.(activeRosterId, paradise);
+      await api.saveParadiseData?.(rosterId, next);
     } catch {
       showToast('Failed to save Paradise data.', TOAST_TYPES.ERROR);
     }
   }
 
-  function openResetConfirm() {
-    if (loading) return;
+  function openResetConfirm(rosterId: string) {
+    if (loading || !rosterId) return;
+    resetTargetRosterId = rosterId;
     resetConfirmOpen = true;
   }
 
   function closeResetConfirm() {
     if (resetBusy) return;
     resetConfirmOpen = false;
+    resetTargetRosterId = '';
   }
 
   async function executeReset() {
-    if (resetBusy || !activeRosterId) return;
+    if (resetBusy || !resetTargetRosterId) return;
+    if (!groups.some((group) => group.rosterId === resetTargetRosterId)) {
+      closeResetConfirm();
+      return;
+    }
     resetBusy = true;
     try {
-      paradise = { weekKey: getParadiseWeekKey(), data: {} };
+      const rosterId = resetTargetRosterId;
+      const next: ParadiseData = { weekKey: getParadiseWeekKey(), data: {} };
+      paradiseByRoster = { ...paradiseByRoster, [rosterId]: next };
       resetNonce += 1;
-      await api.saveParadiseData?.(activeRosterId, paradise);
+      await api.saveParadiseData?.(rosterId, next);
       showToast('Paradise data reset.', TOAST_TYPES.SUCCESS);
       resetConfirmOpen = false;
+      resetTargetRosterId = '';
     } catch {
       showToast('Failed to reset Paradise data.', TOAST_TYPES.ERROR);
     } finally {
@@ -143,13 +222,13 @@
     }
   }
 
-  function getCharacterClass(name: string): string {
+  function getCharacterClass(roster: Record<string, unknown>, name: string): string {
     const entry = roster[name];
     if (!entry) return '';
     return normalizeCharacter(entry).class;
   }
 
-  function getCharacterIlvl(name: string): number {
+  function getCharacterIlvl(roster: Record<string, unknown>, name: string): number {
     const entry = roster[name];
     if (!entry) return 0;
     return normalizeCharacter(entry).ilvl;
@@ -162,13 +241,29 @@
     let isInitial = true;
     unsubscribeRosterChanges = rosterChangeVersion.subscribe(() => {
       if (isInitial) { isInitial = false; return; }
-      void loadAll();
+      scheduleReload();
+    });
+
+    let isInitialVisible = true;
+    unsubscribeVisibleRosterChanges = visibleRostersChangeVersion.subscribe(() => {
+      if (isInitialVisible) { isInitialVisible = false; return; }
+      scheduleReload();
+    });
+
+    let isInitialViewSelection = true;
+    unsubscribeViewSelectionChanges = weeklyViewSelection.subscribe(() => {
+      if (isInitialViewSelection) { isInitialViewSelection = false; return; }
+      scheduleReload();
     });
   });
 
   onDestroy(() => {
     unsubscribeRosterChanges?.();
     unsubscribeRosterChanges = null;
+    unsubscribeVisibleRosterChanges?.();
+    unsubscribeVisibleRosterChanges = null;
+    unsubscribeViewSelectionChanges?.();
+    unsubscribeViewSelectionChanges = null;
   });
 </script>
 
@@ -178,77 +273,85 @@
       <h2>Paradise Tracker</h2>
       <span class="paradise-beta-pill">BETA</span>
     </div>
-    <button
-      type="button"
-      class="paradise-reset-btn"
-      on:click={openResetConfirm}
-      disabled={loading}
-    >
-      Reset Data
-    </button>
   </div>
 
   {#if loading}
     <p class="paradise-empty">Loading Paradise Tracker…</p>
+  {:else if !hasAnyEntry}
+    <p class="paradise-empty">
+      No characters set to show in Paradise. Enable "Show in Paradise" on a character from Roster Management.
+    </p>
   {:else}
-    <table class="tracker-table paradise-table">
-          <thead>
-            <tr>
-              <th>Character</th>
-              {#each PARADISE_RAID_KEYS as key (key)}
-                <th>{PARADISE_RAID_LABELS[key]}</th>
-              {/each}
-            </tr>
-          </thead>
-          <tbody>
-            {#if visibleEntries.length === 0}
-              <tr>
-                <td colspan={PARADISE_RAID_KEYS.length + 1} class="paradise-empty-row">
-                  No characters set to show in Paradise. Enable "Show in Paradise" on a character from Roster Management.
-                </td>
-              </tr>
-            {:else}
-              {#each visibleEntries as entry (entry.name + ':' + resetNonce)}
-                {@const current = getEntry(entry.name)}
-                {@const classIconPath = getClassIconPath(getCharacterClass(entry.name))}
+    <div class="weekly-cards paradise-cards">
+      {#each groups as group (group.rosterId)}
+        {#if group.entries.length > 0}
+          <article class="weekly-card" data-roster-id={group.rosterId}>
+            <div class="paradise-card-header">
+              <h1 class="weekly-title">{group.rosterName}</h1>
+              <button
+                type="button"
+                class="paradise-reset-btn"
+                on:click={() => openResetConfirm(group.rosterId)}
+                disabled={loading || resetBusy}
+              >
+                Reset Data
+              </button>
+            </div>
+            <table class="tracker-table paradise-table">
+              <thead>
                 <tr>
-                  <td class="char-cell">
-                    <div class="char-name" title={entry.name}>
-                      <span class="char-name-text">{entry.name}</span>
-                      {#if classIconPath}
-                        <img src={classIconPath} alt={getCharacterClass(entry.name)} width="28" height="28" />
-                      {/if}
-                    </div>
-                    <div class="char-info">
-                      <span class="char-class">{getCharacterClass(entry.name)}</span>
-                      <span class="char-ilvl">({formatItemLevelDisplay(getCharacterIlvl(entry.name))})</span>
-                    </div>
-                  </td>
-
+                  <th>Character</th>
                   {#each PARADISE_RAID_KEYS as key (key)}
-                    <td class="boss-cell paradise-check-cell">
-                      <input
-                        class="daily-checkmark"
-                        type="checkbox"
-                        checked={current[key]}
-                        on:change={(event) => onCheckboxChange(entry.name, key, event)}
-                        aria-label={`${PARADISE_RAID_LABELS[key]} for ${entry.name}`}
-                      />
-                    </td>
+                    <th>{PARADISE_RAID_LABELS[key]}</th>
                   {/each}
                 </tr>
-              {/each}
-            {/if}
-          </tbody>
-        </table>
-      {/if}
+              </thead>
+              <tbody>
+                {#each group.entries as entry (group.rosterId + ':' + entry.name + ':' + resetNonce)}
+                  {@const current = getEntry(group.rosterId, entry.name)}
+                  {@const characterClass = getCharacterClass(group.roster, entry.name)}
+                  {@const classIconPath = getClassIconPath(characterClass)}
+                  <tr>
+                    <td class="char-cell">
+                      <div class="char-name" title={entry.name}>
+                        <span class="char-name-text">{entry.name}</span>
+                        {#if classIconPath}
+                          <img src={classIconPath} alt={characterClass} width="28" height="28" />
+                        {/if}
+                      </div>
+                      <div class="char-info">
+                        <span class="char-class">{characterClass}</span>
+                        <span class="char-ilvl">({formatItemLevelDisplay(getCharacterIlvl(group.roster, entry.name))})</span>
+                      </div>
+                    </td>
+
+                    {#each PARADISE_RAID_KEYS as key (key)}
+                      <td class="boss-cell paradise-check-cell">
+                        <input
+                          class="daily-checkmark"
+                          type="checkbox"
+                          checked={current[key]}
+                          on:change={(event) => onCheckboxChange(group.rosterId, entry.name, key, event)}
+                          aria-label={`${PARADISE_RAID_LABELS[key]} for ${entry.name}`}
+                        />
+                      </td>
+                    {/each}
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </article>
+        {/if}
+      {/each}
+    </div>
+  {/if}
 </section>
 
 {#if resetConfirmOpen}
   <div class="settings-confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="paradise-reset-title">
     <div class="settings-confirm-card">
       <h3 id="paradise-reset-title">Reset Paradise data?</h3>
-      <p>This clears every Paradise checkbox for the active roster. Weekly Tracker data is not affected.</p>
+      <p>This clears every Paradise checkbox for <strong>{resetTargetRosterName}</strong>. Weekly Tracker data is not affected.</p>
       <div class="settings-confirm-actions">
         <button type="button" on:click={closeResetConfirm} disabled={resetBusy}>Cancel</button>
         <button
@@ -310,6 +413,7 @@
     border-radius: 6px;
     padding: 6px 14px;
     font-size: 13px;
+    white-space: nowrap;
     cursor: pointer;
   }
 
@@ -329,14 +433,23 @@
     font-size: 14px;
   }
 
-  .paradise-empty-row {
-    padding: 24px 12px;
-    color: var(--color-text-secondary);
-    font-size: 14px;
+  .paradise-check-cell {
     text-align: center;
   }
 
-  .paradise-check-cell {
-    text-align: center;
+  .paradise-cards {
+    margin-top: 4px;
+  }
+
+  .paradise-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+
+  .paradise-card-header :global(.weekly-title) {
+    margin: 0;
   }
 </style>

@@ -72,7 +72,6 @@ const DEFAULT_SETTINGS = {
   hiddenBossColumns: [],
   visibleWeeklyRosters: [],
   visibleWeeklyRostersByRoster: {},
-  paradiseBetaUnlocked: false,
   paradiseEnabled: false,
 };
 

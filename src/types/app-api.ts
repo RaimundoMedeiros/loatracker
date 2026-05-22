@@ -16,7 +16,6 @@ export type SettingsPayload = {
   hiddenBossColumns: string[];
   visibleWeeklyRosters: string[];
   visibleWeeklyRostersByRoster: Record<string, string[]>;
-  paradiseBetaUnlocked: boolean;
   paradiseEnabled: boolean;
 } & Record<string, unknown>;
 

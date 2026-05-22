@@ -1,6 +1,7 @@
 import type { AppApi, RosterPayload, SettingsPayload } from '../../types/app-api';
 import { BOSSES, BOSS_MAP, RAID_CONFIG } from '../legacy/config/constants.js';
 import { normalizeRaidKey } from '../domain/shared/raidDomain';
+import { getGlobalVisibleRosterIds, sortRosterIds } from '../utils/rosterVisibility';
 
 type Difficulty = 'Solo' | 'Normal' | 'Hard' | 'Nightmare';
 
@@ -173,16 +174,13 @@ function getAllowedDifficultiesForRoster(
   return soloDisabled ? ['Normal'] : ['Solo', 'Normal'];
 }
 
-function getVisibleRostersForActive(settingsNow: Record<string, unknown>, activeRosterId: string) {
-  const typed = (settingsNow || {}) as Partial<SettingsPayload>;
-  const byRoster = (typed.visibleWeeklyRostersByRoster || {}) as Record<string, string[]>;
-  const fromRoster = Array.isArray(byRoster?.[activeRosterId]) ? byRoster[activeRosterId] : [];
-  const fromLegacy = Array.isArray(typed.visibleWeeklyRosters) ? typed.visibleWeeklyRosters : [];
-  const selected = fromRoster.length > 0 ? fromRoster : fromLegacy;
-
-  return selected
-    .map((entry) => String(entry || '').trim())
-    .filter((entry) => Boolean(entry));
+async function getVisibleRostersForUpdate(
+  api: AppApi,
+  settingsNow: Record<string, unknown>,
+): Promise<string[]> {
+  const rosterList = await api.getRosterList?.();
+  const sortedRosterIds = sortRosterIds(Array.isArray(rosterList) ? rosterList : []);
+  return getGlobalVisibleRosterIds(settingsNow as SettingsPayload, sortedRosterIds);
 }
 
 async function loadRaidsIntoRosterFromDatabase(
@@ -292,7 +290,7 @@ export async function runAutoRaidFocusUpdate(
       .filter((entry) => Boolean(entry))))
     : Array.from(new Set([
       activeRosterId,
-      ...getVisibleRostersForActive(settingsNow, activeRosterId),
+      ...(await getVisibleRostersForUpdate(api, settingsNow)),
     ]));
 
   const updateRoster = options?.updateRoster

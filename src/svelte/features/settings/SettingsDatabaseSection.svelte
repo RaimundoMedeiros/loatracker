@@ -53,7 +53,6 @@
     hiddenBossColumns: [],
     visibleWeeklyRosters: [],
     visibleWeeklyRostersByRoster: {},
-    paradiseBetaUnlocked: false,
     paradiseEnabled: false,
   };
 

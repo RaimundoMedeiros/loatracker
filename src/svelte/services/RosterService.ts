@@ -18,7 +18,6 @@ export const DEFAULT_SETTINGS: SettingsPayload = {
   hiddenBossColumns: [],
   visibleWeeklyRosters: [],
   visibleWeeklyRostersByRoster: {},
-  paradiseBetaUnlocked: false,
   paradiseEnabled: false,
 };
 
