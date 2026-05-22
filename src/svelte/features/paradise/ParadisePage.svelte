@@ -164,6 +164,8 @@
 
       groups = nextGroups;
       paradiseByRoster = nextParadise;
+    } catch {
+      showToast('Failed to load Paradise data.', TOAST_TYPES.ERROR);
     } finally {
       loading = false;
     }
@@ -183,6 +185,7 @@
     try {
       await api.saveParadiseData?.(rosterId, next);
     } catch {
+      paradiseByRoster = { ...paradiseByRoster, [rosterId]: current };
       showToast('Failed to save Paradise data.', TOAST_TYPES.ERROR);
     }
   }
@@ -206,8 +209,9 @@
       return;
     }
     resetBusy = true;
+    const rosterId = resetTargetRosterId;
+    const previous = paradiseByRoster[rosterId];
     try {
-      const rosterId = resetTargetRosterId;
       const next: ParadiseData = { weekKey: getParadiseWeekKey(), data: {} };
       paradiseByRoster = { ...paradiseByRoster, [rosterId]: next };
       resetNonce += 1;
@@ -216,6 +220,10 @@
       resetConfirmOpen = false;
       resetTargetRosterId = '';
     } catch {
+      if (previous) {
+        paradiseByRoster = { ...paradiseByRoster, [rosterId]: previous };
+      }
+      resetNonce += 1;
       showToast('Failed to reset Paradise data.', TOAST_TYPES.ERROR);
     } finally {
       resetBusy = false;

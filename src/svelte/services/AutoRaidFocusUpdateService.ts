@@ -284,14 +284,24 @@ export async function runAutoRaidFocusUpdate(
     ? options?.targetRosterIds
     : null;
 
+  // Resolving auxiliary visible rosters is best-effort: a failing
+  // getRosterList() must not prevent the active roster from updating.
+  let visibleRosterIds: string[] = [];
+  if (!requestedRosterIds) {
+    try {
+      visibleRosterIds = await getVisibleRostersForUpdate(api, settingsNow);
+    } catch (error) {
+      void api.logDebug?.('friends:auto-raid-focus-update-visible-rosters-failed', {
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
   const targetRosterIds = requestedRosterIds
     ? Array.from(new Set(requestedRosterIds
       .map((entry) => String(entry || '').trim())
       .filter((entry) => Boolean(entry))))
-    : Array.from(new Set([
-      activeRosterId,
-      ...(await getVisibleRostersForUpdate(api, settingsNow)),
-    ]));
+    : Array.from(new Set([activeRosterId, ...visibleRosterIds]));
 
   const updateRoster = options?.updateRoster
     ? options.updateRoster
