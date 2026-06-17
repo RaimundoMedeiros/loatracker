@@ -36,6 +36,7 @@ const TRACKED_WEEKLY_BOSSES = [
   'Archdemon Kazeros',
   'Death Incarnate Kazeros',
   'Corvus Tul Rak',
+  'Arcenos, Vanguard of Fanaticism',
 ];
 
 const GUARDIAN_BOSSES = ['Argeos', 'Skolakia', 'Drextalas', 'Krathios', "Krathios's Tail", 'Gargadeth', 'Lumencaligo'];
