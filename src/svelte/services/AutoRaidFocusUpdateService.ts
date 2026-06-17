@@ -146,7 +146,7 @@ function getMaxChestOpenCountForBoss(boss: string) {
 function disallowSoloForBoss(boss: string) {
   const raid = getRaidConfigByBoss(boss) as { id?: string } | undefined;
   const raidId = String(raid?.id || normalizeRaidBossId(boss) || '').toLowerCase();
-  return raidId === 'armoche' || raidId === 'kazeros' || raidId === 'serka';
+  return raidId === 'armoche' || raidId === 'kazeros' || raidId === 'serka' || raidId === 'cathedral';
 }
 
 function getAllowedDifficultiesForRoster(
