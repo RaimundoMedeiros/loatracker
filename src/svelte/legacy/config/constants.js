@@ -25,10 +25,11 @@ export const RAID_CONFIG = [
     { id: 'mordum', label: 'Act 3 Mordum', nm: 1680, hm: 1700, gold: { nm: 28000, hm: 38000 }, chest: { nm: 9800, hm: 12600 } },
     { id: 'armoche', label: 'Act 4 Armoche', nm: 1700, hm: 1720, gold: { nm: 33000, hm: 42000 }, chest: { nm: 10560, hm: 13440 } },
     { id: 'kazeros', label: 'Final Act Kazeros', nm: 1710, hm: 1730, gold: { nm: 40000, hm: 52000 }, chest: { nm: 12800, hm: 16640 } },
-    { id: 'serka', label: 'Shadow Raid Serca', nm: 1710, hm: 1730, nmr: 1740, gold: { nm: 35000, hm: 44000, nmr: 54000 }, chest: { nm: 11200, hm: 14080, nmr: 17280 } }
+    { id: 'serka', label: 'Shadow Raid Serca', nm: 1710, hm: 1730, nmr: 1740, gold: { nm: 35000, hm: 44000, nmr: 54000 }, chest: { nm: 11200, hm: 14080, nmr: 17280 } },
+    { id: 'cathedral', label: 'Horizon Cathedral', nm: 1700, hm: 1720, nmr: 1750, gold: { nm: 30000, hm: 40000, nmr: 50000 }, chest: { nm: 9600, hm: 12800, nmr: 16000 } }
 ];
 
-export const BOSSES = ['Aegir', 'Brel', 'Mordum', 'Armoche', 'Kazeros', 'Serca'];
+export const BOSSES = ['Aegir', 'Brel', 'Mordum', 'Armoche', 'Kazeros', 'Serca', 'Cathedral'];
 
 export const BOSS_MAP = {
     'Aegir, the Oppressor': 'Aegir',
@@ -40,7 +41,8 @@ export const BOSS_MAP = {
     'Death Incarnate Kazeros': 'Kazeros',
     'Serka': 'Serca',
     'Corvus Tul Rak': 'Serca',
-    'Serca': 'Serca'
+    'Serca': 'Serca',
+    'Arcenos, Vanguard of Fanaticism': 'Cathedral'
 };
 
 // ===========================
