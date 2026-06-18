@@ -2421,6 +2421,10 @@
     if (safe.includes('nightmare')) return 'Nightmare';
     if (safe.includes('hard')) return 'Hard';
     if (safe.includes('normal')) return 'Normal';
+    // Horizon Cathedral reports Level 1/2/3 — map to Normal/Hard/Nightmare tiers
+    if (safe.includes('level 3')) return 'Nightmare';
+    if (safe.includes('level 2')) return 'Hard';
+    if (safe.includes('level 1')) return 'Normal';
     return 'Solo';
   }
 

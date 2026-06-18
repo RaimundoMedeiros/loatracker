@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Horizon Cathedral raid added to the weekly tracker (completion, difficulty, gold, and chest tracking)
+
 ### Changed
 
 - License changed from AGPL-3.0-only to MIT
