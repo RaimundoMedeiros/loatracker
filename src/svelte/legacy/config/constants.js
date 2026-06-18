@@ -42,6 +42,7 @@ export const BOSS_MAP = {
     'Serka': 'Serca',
     'Corvus Tul Rak': 'Serca',
     'Serca': 'Serca',
+    'Archbishop Arcenos': 'Cathedral',
     'Arcenos, Vanguard of Fanaticism': 'Cathedral'
 };
 

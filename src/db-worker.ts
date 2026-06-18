@@ -36,6 +36,7 @@ const TRACKED_WEEKLY_BOSSES = [
   'Archdemon Kazeros',
   'Death Incarnate Kazeros',
   'Corvus Tul Rak',
+  'Archbishop Arcenos',
   'Arcenos, Vanguard of Fanaticism',
 ];
 
